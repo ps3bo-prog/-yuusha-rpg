@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#071018">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>勇者の冒険 REAL v6 3D</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071018;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;touch-action:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;top:max(8px,env(safe-area-inset-top));left:8px;right:8px;z-index:10;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+.panel{background:rgba(7,11,16,.78);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.13);border-radius:14px;box-shadow:0 8px 24px #0008}
+#stats{padding:8px 10px;min-width:235px;font-size:12px;line-height:1.5}
+.bar{width:140px;height:8px;background:#ffffff18;border-radius:99px;overflow:hidden;display:inline-block;vertical-align:middle}
+.fill{height:100%;border-radius:99px}.hp{background:linear-gradient(90deg,#ff3e55,#ff8a59)}.mp{background:linear-gradient(90deg,#3b85ff,#63d7ff)}.st{background:linear-gradient(90deg,#6fd66f,#b7f089)}
+#mini{width:110px;height:110px;border-radius:14px;border:1px solid rgba(255,255,255,.13);background:#0b1118}
+#boss{display:none;position:fixed;top:96px;left:50%;transform:translateX(-50%);z-index:12;width:min(88vw,640px);padding:9px 12px;text-align:center;background:rgba(35,5,10,.86);border:1px solid #ff586655;border-radius:13px}
+#boss .bar{width:82%;height:10px}
+#log{position:fixed;left:50%;transform:translateX(-50%);bottom:126px;z-index:11;width:min(92vw,700px);padding:8px 12px;text-align:center;font-size:13px;background:rgba(7,11,16,.75);border:1px solid rgba(255,255,255,.12);border-radius:13px}
+#controls{position:fixed;left:0;right:0;bottom:max(12px,env(safe-area-inset-bottom));z-index:20;display:flex;justify-content:space-between;align-items:flex-end;padding:0 16px;pointer-events:none}
+#stick{width:138px;height:138px;border-radius:50%;background:#ffffff10;border:1px solid #ffffff22;position:relative;pointer-events:auto;box-shadow:inset 0 0 35px #0008}
+#knob{position:absolute;width:64px;height:64px;border-radius:50%;left:37px;top:37px;background:linear-gradient(#ffffff3b,#ffffff15);border:1px solid #ffffff55}
+#actions{display:grid;grid-template-columns:repeat(3,60px);gap:8px;pointer-events:auto}
+.action{width:60px;height:60px;border-radius:50%;border:1px solid #ffffff44;background:linear-gradient(#2b3948df,#121a23f0);color:#fff;font-size:10px;font-weight:700;box-shadow:0 8px 18px #0009}
+.action b{display:block;font-size:22px}.action:active{transform:scale(.94)}
+#menu{position:fixed;right:10px;top:135px;z-index:21;display:flex;gap:6px}
+.small{pointer-events:auto;border:1px solid rgba(255,255,255,.14);background:rgba(7,11,16,.82);color:#fff;border-radius:10px;padding:7px 9px}
+#titleCard{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:30;background:rgba(0,0,0,.58);padding:16px 22px;border-radius:16px;border:1px solid #ffffff22;text-align:center;animation:fade 4s forwards;pointer-events:none}
+#titleCard h1{margin:0 0 6px;font-size:24px}
+@keyframes fade{0%,65%{opacity:1}100%{opacity:0;visibility:hidden}}
+@media(max-width:700px){
+ #stats{min-width:190px}.bar{width:105px}#mini{width:86px;height:86px}
+ #stick{width:122px;height:122px}#knob{width:56px;height:56px;left:33px;top:33px}
+ #actions{grid-template-columns:repeat(3,54px)}.action{width:54px;height:54px}
+ #log{bottom:114px}
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="titleCard"><h1>⚔️ 勇者の冒険 REAL v6 3D</h1><div>第三者視点 3D アクションRPG</div></div>
+
+<div id="hud">
+  <div id="stats" class="panel"></div>
+  <canvas id="mini" width="110" height="110"></canvas>
+</div>
+
+<div id="boss">
+  <div id="bossName"></div>
+  <div class="bar"><div id="bossBar" class="fill hp"></div></div>
+</div>
+
+<div id="menu">
+  <button class="small" onclick="saveGame()">💾</button>
+  <button class="small" onclick="loadGame()">📂</button>
+</div>
+
+<div id="log">左スティックで移動。右のボタンで攻撃・回避・スキル。</div>
+
+<div id="controls">
+  <div id="stick"><div id="knob"></div></div>
+  <div id="actions">
+    <button class="action" id="attack"><b>⚔️</b>攻撃</button>
+    <button class="action" id="skill"><b>🔥</b>スキル</button>
+    <button class="action" id="dodge"><b>💨</b>回避</button>
+    <button class="action" id="guard"><b>🛡️</b>防御</button>
+    <button class="action" id="heal"><b>✨</b>回復</button>
+    <button class="action" id="burst"><b>⚡</b>必殺</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
+
+const canvas=document.getElementById('game');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8ec8f0);
+scene.fog=new THREE.FogExp2(0x9cc7d7,0.0023);
+
+const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1000);
+camera.position.set(0,5,9);
+
+const hemi=new THREE.HemisphereLight(0xcce9ff,0x304020,1.6);
+scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,2.1);
+sun.position.set(30,50,20);
+sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-60;sun.shadow.camera.right=60;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;
+scene.add(sun);
+
+const world=new THREE.Group();
+scene.add(world);
+
+function mat(color,rough=.8){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05})}
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(260,260,60,60),mat(0x527f49,1));
+ground.rotation.x=-Math.PI/2;
+ground.receiveShadow=true;
+world.add(ground);
+
+// subtle terrain bumps
+const pos=ground.geometry.attributes.position;
+for(let i=0;i<pos.count;i++){
+  const x=pos.getX(i), y=pos.getY(i);
+  const z=Math.sin(x*.08)*.18+Math.cos(y*.11)*.22+Math.sin((x+y)*.05)*.12;
+  pos.setZ(i,z);
+}
+ground.geometry.computeVertexNormals();
+
+function addTree(x,z,s=1){
+  const g=new THREE.Group();
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,1.6,8),mat(0x6b4a2d));
+  trunk.position.y=.8; trunk.castShadow=true;
+  const crown=new THREE.Mesh(new THREE.ConeGeometry(.9,2.4,10),mat(0x245c2a));
+  crown.position.y=2.2; crown.castShadow=true;
+  g.add(trunk,crown); g.position.set(x,0,z); g.scale.setScalar(s); world.add(g);
+}
+for(let i=0;i<110;i++){
+  const a=Math.random()*Math.PI*2,r=30+Math.random()*85;
+  addTree(Math.cos(a)*r,Math.sin(a)*r,.7+Math.random()*.8);
+}
+
+function addRock(x,z,s=1){
+  const r=new THREE.Mesh(new THREE.DodecahedronGeometry(.7,0),mat(0x666a70));
+  r.scale.set(1,.7,1.2);r.position.set(x,.45,z);r.scale.multiplyScalar(s);r.castShadow=true;world.add(r);
+}
+for(let i=0;i<35;i++) addRock((Math.random()-.5)*170,(Math.random()-.5)*170,.6+Math.random()*1.4);
+
+function addRuins(){
+  const group=new THREE.Group();
+  for(let i=0;i<8;i++){
+    const c=new THREE.Mesh(new THREE.BoxGeometry(1.5,4,1.5),mat(0x8c8172));
+    c.position.set((i%4)*3-4.5,2,Math.floor(i/4)*7-3.5);c.castShadow=true;c.receiveShadow=true;group.add(c);
+  }
+  group.position.set(34,0,-18);world.add(group);
+}
+addRuins();
+
+function addCastle(){
+  const g=new THREE.Group();
+  const base=new THREE.Mesh(new THREE.BoxGeometry(8,5,8),mat(0x4c4d55));base.position.y=2.5;base.castShadow=true;g.add(base);
+  for(const [x,z] of [[-4,-4],[4,-4],[-4,4],[4,4]]){
+    const t=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.6,7,10),mat(0x41434a));t.position.set(x,3.5,z);t.castShadow=true;g.add(t);
+  }
+  g.position.set(-48,0,-42);world.add(g);
+}
+addCastle();
+
+const player=new THREE.Group();
+const body=new THREE.Mesh(new THREE.CapsuleGeometry(.55,1.1,6,10),mat(0x3f79d6,.45));
+body.position.y=1.1;body.castShadow=true;
+const sword=new THREE.Mesh(new THREE.BoxGeometry(.12,1.6,.12),new THREE.MeshStandardMaterial({color:0xd9e7f2,metalness:.85,roughness:.2}));
+sword.position.set(.75,1.4,.1);sword.rotation.z=-.25;sword.castShadow=true;
+player.add(body,sword);scene.add(player);
+player.position.set(0,0,0);
+
+const state={
+  hp:180,maxHp:180,mp:70,maxMp:70,st:100,maxSt:100,
+  lv:1,xp:0,gold:200,atk:35,burst:0,
+  attackCD:0,skillCD:0,dodgeCD:0,guard:false,invincible:0
+};
+
+const enemies=[];
+function createEnemy(type,x,z,boss=false){
+  const data={
+    slime:{color:0x67d65a,hp:70,atk:10,speed:2.2,size:.75,name:'スライム'},
+    wolf:{color:0x4a4f5a,hp:120,atk:16,speed:3.7,size:.85,name:'ダークウルフ'},
+    orc:{color:0x7b4f35,hp:180,atk:22,speed:2.5,size:1.05,name:'オーク'},
+    boss1:{color:0xff5b35,hp:950,atk:32,speed:2.8,size:1.8,name:'炎獄騎士ヴァルガ'},
+    boss2:{color:0x66aaff,hp:1400,atk:38,speed:3.3,size:2.1,name:'氷帝フェンリル'},
+    boss3:{color:0x7d46c8,hp:2400,atk:48,speed:3.0,size:2.6,name:'深淵王アビス'}
+  }[type];
+  const g=new THREE.Group();
+  const mesh=new THREE.Mesh(new THREE.SphereGeometry(data.size,20,14),mat(data.color,.55));
+  mesh.position.y=data.size;mesh.castShadow=true;
+  const eyeMat=new THREE.MeshBasicMaterial({color:0xffeeee});
+  const eye1=new THREE.Mesh(new THREE.SphereGeometry(.12*data.size,8,8),eyeMat);
+  eye1.position.set(-.22*data.size,1.05*data.size,.7*data.size);
+  const eye2=eye1.clone();eye2.position.x*=-1;
+  g.add(mesh,eye1,eye2);g.position.set(x,0,z);scene.add(g);
+  const e={...data,type,boss,obj:g,hp:data.hp,maxHp:data.hp,alive:true,nextAttack:0,windup:0,phase:1,flash:0};
+  enemies.push(e);return e;
+}
+for(let i=0;i<28;i++){
+  const a=Math.random()*Math.PI*2,r=18+Math.random()*75;
+  createEnemy(i%6===0?'orc':i%2?'wolf':'slime',Math.cos(a)*r,Math.sin(a)*r,false);
+}
+createEnemy('boss1',34,-18,true);
+createEnemy('boss2',58,45,true);
+createEnemy('boss3',-48,-42,true);
+
+const allies=[];
+function addAlly(name,color,offset,role){
+  const g=new THREE.Group();
+  const m=new THREE.Mesh(new THREE.CapsuleGeometry(.45,.9,5,8),mat(color,.55));m.position.y=.9;m.castShadow=true;g.add(m);scene.add(g);
+  const a={name,role,obj:g,offset,hp:120,maxHp:120,cd:0,atk:role==='mage'?30:role==='tank'?24:16};allies.push(a);
+}
+addAlly('レオン',0x6f8fd6,new THREE.Vector3(-1.6,0,1.6),'tank');
+addAlly('ミラ',0xc26ad6,new THREE.Vector3(1.6,0,1.8),'mage');
+addAlly('セラ',0x7bdba7,new THREE.Vector3(0,0,2.8),'healer');
+
+let joy={x:0,y:0};
+let targetYaw=0,currentYaw=0;
+const clock=new THREE.Clock();
+const logEl=document.getElementById('log');
+const bossEl=document.getElementById('boss'),bossName=document.getElementById('bossName'),bossBar=document.getElementById('bossBar');
+const mini=document.getElementById('mini'),mctx=mini.getContext('2d');
+
+function msg(t){logEl.textContent=t}
+function distXZ(a,b){const dx=a.x-b.x,dz=a.z-b.z;return Math.hypot(dx,dz)}
+function nearest(range=3.2){
+  let best=null,d=999;
+  for(const e of enemies){if(!e.alive)continue;const dd=distXZ(player.position,e.obj.position);if(dd<range&&dd<d){d=dd;best=e}}
+  return best;
+}
+function damageEnemy(e,dmg){
+  e.hp-=dmg;e.flash=.12;
+  if(e.hp<=0){e.hp=0;e.alive=false;e.obj.visible=false;state.gold+=e.boss?500:20;state.xp+=e.boss?200:25;msg(`🏆 ${e.name} 撃破！`);if(state.xp>=state.lv*100){state.xp-=state.lv*100;state.lv++;state.maxHp+=24;state.hp=state.maxHp;state.atk+=5;msg(`⬆️ Lv.${state.lv}！`)}} 
+}
+function attack(){
+  if(state.attackCD>0||state.st<8)return;
+  state.attackCD=.36;state.st-=8;
+  const e=nearest(3.4);
+  sword.rotation.x=-1.2;setTimeout(()=>sword.rotation.x=0,130);
+  if(!e){msg('⚔️ 空振り');return}
+  const dmg=Math.floor(state.atk+state.lv*4+Math.random()*10);
+  damageEnemy(e,dmg);state.burst=Math.min(100,state.burst+10);msg(`⚔️ ${e.name}に ${dmg}ダメージ`);
+}
+function skill(){
+  if(state.skillCD>0||state.mp<15)return;
+  state.skillCD=1.8;state.mp-=15;
+  let hit=0;
+  const ring=new THREE.Mesh(new THREE.RingGeometry(1.5,4.2,48),new THREE.MeshBasicMaterial({color:0xff7a35,transparent:true,opacity:.65,side:THREE.DoubleSide}));
+  ring.rotation.x=-Math.PI/2;ring.position.copy(player.position);ring.position.y=.08;scene.add(ring);
+  setTimeout(()=>scene.remove(ring),350);
+  for(const e of enemies){if(e.alive&&distXZ(player.position,e.obj.position)<4.4){damageEnemy(e,60+state.lv*8);hit++}}
+  msg(`🔥 範囲スキル！ ${hit}体命中`);
+}
+function dodge(){
+  if(state.st<22)return;
+  state.st-=22;state.invincible=.55;state.dodgeCD=.5;
+  const f=new THREE.Vector3(Math.sin(currentYaw),0,Math.cos(currentYaw)).multiplyScalar(-3);
+  player.position.add(f);msg('💨 回避！');
+}
+function guard(){state.guard=!state.guard;msg(state.guard?'🛡️ ガードON':'🛡️ ガードOFF')}
+function heal(){if(state.mp<12||state.hp>=state.maxHp)return;state.mp-=12;state.hp=Math.min(state.maxHp,state.hp+55+state.lv*6);msg('✨ 回復！')}
+function burst(){
+  if(state.burst<100)return;state.burst=0;
+  let hit=0;for(const e of enemies){if(e.alive&&distXZ(player.position,e.obj.position)<7){damageEnemy(e,190+state.lv*20);hit++}}
+  msg(`⚡ 必殺技「天翔断」！ ${hit}体`);
+}
+
+function updateEnemies(dt){
+  let shown=null;
+  for(const e of enemies){
+    if(!e.alive)continue;
+    if(e.flash>0){e.flash-=dt;e.obj.scale.setScalar(1+e.flash*2)}else e.obj.scale.setScalar(1);
+    const d=distXZ(player.position,e.obj.position);
+    if(e.boss&&d<16)shown=e;
+    if(e.boss&&e.hp<e.maxHp*.5&&e.phase===1){e.phase=2;e.speed*=1.3;e.atk+=8;msg(`💢 ${e.name} 第2形態！`)}
+    if(d<16&&e.windup<=0){
+      const dir=new THREE.Vector3().subVectors(player.position,e.obj.position);dir.y=0;
+      if(dir.length()>1.5){dir.normalize();e.obj.position.addScaledVector(dir,e.speed*dt)}
+      e.obj.lookAt(player.position.x,e.obj.position.y,player.position.z);
+    }
+    e.nextAttack-=dt;
+    if(e.windup>0){
+      e.windup-=dt;
+      const pulse=1+Math.sin(performance.now()/45)*.08;
+      e.obj.scale.setScalar(pulse);
+      if(e.windup<=0&&d<(e.boss?3.8:2.2)){
+        if(state.invincible>0){msg('✨ ジャスト回避！');state.burst=Math.min(100,state.burst+18)}
+        else{
+          let dmg=e.atk+Math.floor(Math.random()*8);
+          if(state.guard)dmg=Math.floor(dmg*.45);
+          state.hp-=dmg;msg(`💥 ${e.name} ${dmg}ダメージ`);
+          if(state.hp<=0){state.hp=state.maxHp;state.mp=state.maxMp;player.position.set(0,0,0);msg('💫 力尽きた。王都へ帰還')}
+        }
+      }
+    }else if(d<(e.boss?4.2:2.6)&&e.nextAttack<=0){
+      e.nextAttack=e.boss?1.4:2.0;e.windup=e.boss?.8:.55;msg(`⚠️ ${e.name}の攻撃予兆！`);
+    }
+  }
+  if(shown){bossEl.style.display='block';bossName.textContent=shown.name+(shown.phase===2?' PHASE 2':'');bossBar.style.width=(shown.hp/shown.maxHp*100)+'%'}else bossEl.style.display='none';
+}
+
+function updateAllies(dt){
+  const target=nearest(12);
+  for(const a of allies){
+    a.cd-=dt;
+    const desired=player.position.clone().add(a.offset);
+    const d=a.obj.position.distanceTo(desired);
+    if(d>.7)a.obj.position.lerp(desired,Math.min(1,dt*2.2));
+    if(!target)continue;
+    const td=a.obj.position.distanceTo(target.obj.position);
+    if(a.role==='tank'&&td<3.3&&a.cd<=0){damageEnemy(target,a.atk);a.cd=1.0}
+    if(a.role==='mage'&&td<8&&a.cd<=0){damageEnemy(target,a.atk+18);a.cd=1.6}
+    if(a.role==='healer'&&state.hp<state.maxHp*.55&&a.cd<=0){state.hp=Math.min(state.maxHp,state.hp+30);a.cd=2.4;msg('✨ セラが回復！')}
+  }
+}
+
+function updateHUD(){
+  const hp=state.hp/state.maxHp*100,mp=state.mp/state.maxMp*100,st=state.st/state.maxSt*100;
+  document.getElementById('stats').innerHTML=
+  `Lv.${state.lv}　💰${state.gold}G<br>`+
+  `❤️ <span class="bar"><span class="fill hp" style="display:block;width:${hp}%"></span></span> ${Math.ceil(state.hp)}/${state.maxHp}<br>`+
+  `💧 <span class="bar"><span class="fill mp" style="display:block;width:${mp}%"></span></span><br>`+
+  `🟢 <span class="bar"><span class="fill st" style="display:block;width:${st}%"></span></span><br>`+
+  `⚡ 必殺 ${Math.floor(state.burst)}%`;
+}
+function drawMini(){
+  mctx.clearRect(0,0,110,110);mctx.fillStyle='#13212b';mctx.fillRect(0,0,110,110);
+  const map=(v)=>55+v*.45;
+  for(const e of enemies){if(e.alive&&e.boss){mctx.fillStyle='#ff4d5d';mctx.beginPath();mctx.arc(map(e.obj.position.x),map(e.obj.position.z),3,0,7);mctx.fill()}}
+  mctx.fillStyle='#4aa3ff';mctx.beginPath();mctx.arc(map(player.position.x),map(player.position.z),4,0,7);mctx.fill();
+}
+
+function updateCamera(){
+  currentYaw+=(targetYaw-currentYaw)*.08;
+  const offset=new THREE.Vector3(Math.sin(currentYaw)*8,5.2,Math.cos(currentYaw)*8);
+  camera.position.lerp(player.position.clone().add(offset),.12);
+  const look=player.position.clone().add(new THREE.Vector3(0,1.3,0));
+  camera.lookAt(look);
+}
+function animate(){
+  const dt=Math.min(.033,clock.getDelta());
+  state.attackCD=Math.max(0,state.attackCD-dt);
+  state.skillCD=Math.max(0,state.skillCD-dt);
+  state.invincible=Math.max(0,state.invincible-dt);
+  state.st=Math.min(state.maxSt,state.st+24*dt);
+  state.mp=Math.min(state.maxMp,state.mp+2.3*dt);
+
+  const len=Math.hypot(joy.x,joy.y);
+  if(len>.05){
+    const f=new THREE.Vector3(Math.sin(currentYaw),0,Math.cos(currentYaw)).normalize();
+    const r=new THREE.Vector3(f.z,0,-f.x);
+    const dir=f.multiplyScalar(-joy.y).add(r.multiplyScalar(joy.x)).normalize();
+    player.position.addScaledVector(dir,state.speed?state.speed*0.018*dt*60:3*dt);
+    targetYaw=Math.atan2(dir.x,dir.z)+Math.PI;
+    player.rotation.y=targetYaw;
+  }
+
+  player.position.x=THREE.MathUtils.clamp(player.position.x,-120,120);
+  player.position.z=THREE.MathUtils.clamp(player.position.z,-120,120);
+
+  updateEnemies(dt);updateAllies(dt);updateCamera();updateHUD();drawMini();
+  renderer.render(scene,camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+
+const stick=document.getElementById('stick'),knob=document.getElementById('knob');let active=false;
+function joySet(x,y){
+  const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  let dx=x-cx,dy=y-cy,max=r.width*.32,len=Math.hypot(dx,dy)||1,cl=Math.min(max,len);
+  joy.x=dx/len*(cl/max);joy.y=dy/len*(cl/max);knob.style.transform=`translate(${joy.x*max}px,${joy.y*max}px)`;
+}
+stick.onpointerdown=e=>{active=true;stick.setPointerCapture(e.pointerId);joySet(e.clientX,e.clientY)};
+stick.onpointermove=e=>{if(active)joySet(e.clientX,e.clientY)};
+function endJoy(){active=false;joy.x=joy.y=0;knob.style.transform='translate(0,0)'}
+stick.onpointerup=endJoy;stick.onpointercancel=endJoy;
+
+document.getElementById('attack').onpointerdown=attack;
+document.getElementById('skill').onpointerdown=skill;
+document.getElementById('dodge').onpointerdown=dodge;
+document.getElementById('guard').onpointerdown=guard;
+document.getElementById('heal').onpointerdown=heal;
+document.getElementById('burst').onpointerdown=burst;
+
+window.saveGame=()=>{
+  localStorage.setItem('yuusha_v6_3d',JSON.stringify({
+    state,
+    pos:{x:player.position.x,y:player.position.y,z:player.position.z},
+    enemies:enemies.map(e=>({hp:e.hp,alive:e.alive,phase:e.phase}))
+  }));
+  msg('💾 セーブしました');
+};
+window.loadGame=()=>{
+  const s=localStorage.getItem('yuusha_v6_3d');if(!s)return msg('📂 セーブデータなし');
+  const d=JSON.parse(s);Object.assign(state,d.state);player.position.set(d.pos.x,d.pos.y,d.pos.z);
+  d.enemies?.forEach((v,i)=>{if(enemies[i]){enemies[i].hp=v.hp;enemies[i].alive=v.alive;enemies[i].phase=v.phase||1;enemies[i].obj.visible=v.alive}});
+  msg('📂 ロードしました');
+};
+</script>
+</body>
+</html>
