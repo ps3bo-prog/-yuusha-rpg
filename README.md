@@ -1,20 +1,45 @@
-# REAL v19.2 CACHE RESET SAFE
+# 勇者の冒険 REAL v20 SAFE CORE REBUILD
 
-この版は、古いPWA Service Worker / Cache Storageが過去のindex.htmlを返し続ける問題を除去するための救済版です。
+3Dコアを最優先に作り直した安定化版です。
 
-## GitHubで必ず差し替える2ファイル
-1. `index.html`
-2. `service-worker.js`
+## 起動順
+1. Three.js
+2. Renderer
+3. World
+4. Player
+5. Camera
+6. Controls
+7. Enemies
+8. Combat
+9. AI
+10. Save
 
-古い `service-worker.js` を残したまま `index.html` だけ更新すると、古いゲームがキャッシュから返される場合があります。
+各システムは診断画面で ✅ / ❌ を確認できます。
 
-## 公開後
-Safariを一度完全に閉じてから開き直し、URL末尾を
+## 入っている機能
+- 本物のThree.js 3D世界
+- プレイヤー3Dモデル
+- 左スティック移動
+- 画面ドラッグ視点操作
+- 敵追跡AI
+- 通常攻撃
+- 範囲スキル
+- 回避
+- 防御
+- 回復
+- ボス
+- ミニマップ
+- セーブ/オートセーブ
+- 簡易AI Director
+- 起動自己診断
 
-`?v=192&clean=1`
+## 重要
+v20は安定した3Dコアを優先しているため、
+v18/v19の大量機能をすべて同時には戻していません。
+このv20が安定起動したら、アイテム・職業・採掘・建築・宿敵AIなどを
+1機能ずつ安全に戻せます。
 
-にしてください。
+JavaScript構文チェック: PASS
 
-v19.2の `service-worker.js` は、既存キャッシュを削除し、自分自身の登録も解除するための一時的な「自爆型」Service Workerです。
-
-正常起動後はこのまま置いても構いませんが、将来PWAを復活させる場合は新しいService Worker設計へ置き換えてください。
+GitHub Pages:
+`?v=20`

@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>勇者の冒険 REAL v20 SAFE CORE REBUILD</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071018;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;touch-action:none}
+*{box-sizing:border-box}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.panel{background:rgba(7,13,20,.76);border:1px solid rgba(255,255,255,.15);border-radius:14px;backdrop-filter:blur(8px)}
+#hud{position:fixed;left:12px;top:max(12px,env(safe-area-inset-top));z-index:20;padding:9px 11px;min-width:205px;font-size:12px;line-height:1.45}
+.bar{display:inline-block;width:100px;height:7px;background:#ffffff1a;border-radius:9px;overflow:hidden;vertical-align:middle}
+.fill{display:block;height:100%}.hp{background:#ff685e}.mp{background:#58b8ff}.st{background:#7ddd75}
+#mini{position:fixed;right:12px;top:max(12px,env(safe-area-inset-top));z-index:20;width:88px;height:88px}
+#diagToggle{position:fixed;right:12px;top:112px;z-index:25;width:46px;height:46px;border:0;border-radius:13px;background:#101923;color:#fff;font-size:22px}
+#diag{display:none;position:fixed;right:12px;top:168px;z-index:30;width:min(310px,80vw);max-height:46vh;overflow:auto;padding:12px;font-size:11px}
+#diag.open{display:block}
+.diagRow{padding:5px 0;border-bottom:1px solid #ffffff12}.ok{color:#8dff9b}.fail{color:#ff8d8d}.pending{color:#ffd166}
+#objective{position:fixed;left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);z-index:20;padding:7px 10px;font-size:11px;max-width:54vw;text-align:center}
+#message{position:fixed;left:50%;bottom:132px;transform:translateX(-50%);z-index:25;padding:8px 12px;font-size:12px;min-width:180px;text-align:center;opacity:0;transition:opacity .2s}
+#message.show{opacity:1}
+#stick{position:fixed;left:22px;bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));z-index:25;width:128px;height:128px;border-radius:50%;border:1px solid #ffffff35;background:#ffffff12}
+#knob{position:absolute;left:35px;top:35px;width:58px;height:58px;border-radius:50%;background:#ffffff35;border:1px solid #ffffff50}
+#actions{position:fixed;right:14px;bottom:max(28px,calc(env(safe-area-inset-bottom) + 18px));z-index:25;display:grid;grid-template-columns:repeat(3,54px);gap:7px}
+.action{width:54px;height:54px;border-radius:50%;border:1px solid #ffffff32;background:#142231;color:#fff;font-size:10px;font-weight:700}
+.action b{display:block;font-size:20px}
+#boot{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#061019}
+#bootCard{width:min(88vw,420px);padding:18px}
+#bootTitle{font-size:20px;font-weight:800;margin-bottom:12px}
+#bootStatus{font-size:12px;line-height:1.65;white-space:pre-line}
+#bootError{display:none;margin-top:12px;padding:10px;background:#3a0f16;border:1px solid #ff6d7a;border-radius:10px;font-size:11px;white-space:pre-wrap}
+#retryBtn{display:none;margin-top:12px;padding:10px 14px;border:0;border-radius:10px;background:#2d7bf2;color:#fff;font-weight:700}
+#quickSave{position:fixed;right:14px;bottom:210px;z-index:24;width:44px;height:44px;border:1px solid #ffffff25;border-radius:12px;background:#101923;color:#fff}
+@media(max-width:700px){
+ #hud{min-width:180px;font-size:10px}.bar{width:78px}
+ #mini{width:76px;height:76px}
+ #stick{width:112px;height:112px}#knob{left:31px;top:31px;width:50px;height:50px}
+ #actions{grid-template-columns:repeat(3,48px);gap:6px}.action{width:48px;height:48px}.action b{font-size:17px}
+ #message{bottom:112px}
+}
+</style>
+</head>
+<body>
+<div id="boot">
+  <div id="bootCard" class="panel">
+    <div id="bootTitle">REAL v20 SAFE CORE REBUILD</div>
+    <div id="bootStatus">起動準備中…</div>
+    <div id="bootError"></div>
+    <button id="retryBtn">再読み込み</button>
+  </div>
+</div>
+
+<canvas id="game"></canvas>
+<canvas id="mini" class="panel"></canvas>
+<div id="hud" class="panel"></div>
+<div id="objective" class="panel">目的：3D世界を起動する</div>
+<button id="diagToggle">☰</button>
+<div id="diag" class="panel"></div>
+<div id="message" class="panel"></div>
+<button id="quickSave">💾</button>
+
+<div id="stick"><div id="knob"></div></div>
+<div id="actions">
+  <button class="action" id="attackBtn"><b>⚔️</b>攻撃</button>
+  <button class="action" id="skillBtn"><b>🔥</b>技</button>
+  <button class="action" id="dodgeBtn"><b>💨</b>回避</button>
+  <button class="action" id="guardBtn"><b>🛡️</b>防御</button>
+  <button class="action" id="healBtn"><b>✨</b>回復</button>
+  <button class="action" id="interactBtn"><b>💬</b>調べる</button>
+</div>
+
+<script>
+window.V20_BOOT_LOG=[];
+window.addEventListener('error',e=>{
+  window.V20_BOOT_LOG.push({system:'window',ok:false,message:e.message||'Unknown error'});
+});
+window.addEventListener('unhandledrejection',e=>{
+  window.V20_BOOT_LOG.push({system:'promise',ok:false,message:String(e.reason||'Unknown promise error')});
+});
+</script>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
+
+const boot=document.getElementById('boot');
+const bootStatus=document.getElementById('bootStatus');
+const bootError=document.getElementById('bootError');
+const retryBtn=document.getElementById('retryBtn');
+const diag=document.getElementById('diag');
+const messageEl=document.getElementById('message');
+const objective=document.getElementById('objective');
+
+const SYSTEMS=['Three.js','Renderer','World','Player','Camera','Controls','Enemies','Combat','AI','Save'];
+const statusMap=new Map(SYSTEMS.map(x=>[x,{state:'pending',message:''}]));
+
+function renderDiag(){
+  diag.innerHTML=[...statusMap.entries()].map(([name,v])=>{
+    const icon=v.state==='ok'?'✅':v.state==='fail'?'❌':'⏳';
+    const cls=v.state==='ok'?'ok':v.state==='fail'?'fail':'pending';
+    return `<div class="diagRow ${cls}">${icon} ${name}${v.message?`<br><small>${v.message}</small>`:''}</div>`;
+  }).join('');
+}
+function setStatus(name,state,message=''){
+  statusMap.set(name,{state,message});
+  renderDiag();
+  bootStatus.textContent=[...statusMap.entries()].map(([n,v])=>`${v.state==='ok'?'✅':v.state==='fail'?'❌':'⏳'} ${n}${v.message?` - ${v.message}`:''}`).join('\n');
+}
+function fatal(system,error){
+  setStatus(system,'fail',error?.message||String(error));
+  bootError.style.display='block';
+  bootError.textContent=`${system} 起動失敗\n${error?.stack||error}`;
+  retryBtn.style.display='inline-block';
+}
+retryBtn.onclick=()=>location.reload();
+renderDiag();
+
+function safe(system,fn,fallback=null){
+  try{
+    const result=fn();
+    setStatus(system,'ok');
+    return result;
+  }catch(e){
+    setStatus(system,'fail',e.message);
+    console.error(system,e);
+    return fallback;
+  }
+}
+
+setStatus('Three.js','ok',`r${THREE.REVISION}`);
+
+const canvas=document.getElementById('game');
+const renderer=safe('Renderer',()=>{
+  const r=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+  r.setPixelRatio(Math.min(devicePixelRatio,1.5));
+  r.setSize(innerWidth,innerHeight,false);
+  r.shadowMap.enabled=true;
+  r.shadowMap.type=THREE.PCFSoftShadowMap;
+  r.outputColorSpace=THREE.SRGBColorSpace;
+  return r;
+});
+if(!renderer){fatal('Renderer',new Error('WebGLRendererを作れませんでした'));throw new Error('Renderer unavailable')}
+
+const scene=safe('World',()=>{
+  const s=new THREE.Scene();
+  s.background=new THREE.Color(0x8bc5ef);
+  s.fog=new THREE.Fog(0x8bc5ef,35,90);
+  const hemi=new THREE.HemisphereLight(0xdff3ff,0x455331,1.4);s.add(hemi);
+  const sun=new THREE.DirectionalLight(0xffffff,1.7);sun.position.set(20,35,15);sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-35;sun.shadow.camera.right=35;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;s.add(sun);
+
+  const groundMat=new THREE.MeshStandardMaterial({color:0x55914d,roughness:.95});
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(120,120),groundMat);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;s.add(ground);
+
+  const trunkMat=new THREE.MeshStandardMaterial({color:0x65452e});
+  const leafMat=new THREE.MeshStandardMaterial({color:0x2f6f3e});
+  const rockMat=new THREE.MeshStandardMaterial({color:0x737b80,roughness:1});
+  for(let i=0;i<38;i++){
+    const x=Math.random()*90-45,z=Math.random()*90-45;
+    if(Math.hypot(x,z)<8)continue;
+    if(Math.random()<.65){
+      const g=new THREE.Group();
+      const t=new THREE.Mesh(new THREE.BoxGeometry(.45,2.2,.45),trunkMat);t.position.y=1.1;t.castShadow=true;g.add(t);
+      const l=new THREE.Mesh(new THREE.ConeGeometry(1.25,3.4,6),leafMat);l.position.y=3;l.castShadow=true;g.add(l);
+      g.position.set(x,0,z);s.add(g);
+    }else{
+      const r=new THREE.Mesh(new THREE.DodecahedronGeometry(.7+Math.random()*.7,0),rockMat);r.position.set(x,.6,z);r.scale.y=.7;r.castShadow=true;r.receiveShadow=true;s.add(r);
+    }
+  }
+  // landmark
+  const towerMat=new THREE.MeshStandardMaterial({color:0xa8a8a8});
+  for(let y=.5;y<6;y+=1){
+    const b=new THREE.Mesh(new THREE.BoxGeometry(3,1,3),towerMat);b.position.set(14,y,-14);b.castShadow=true;b.receiveShadow=true;s.add(b);
+  }
+  return s;
+});
+if(!scene){fatal('World',new Error('Scene生成失敗'));throw new Error('World unavailable')}
+
+const player=safe('Player',()=>{
+  const g=new THREE.Group();
+  const bodyMat=new THREE.MeshStandardMaterial({color:0x2468d7,roughness:.65});
+  const skinMat=new THREE.MeshStandardMaterial({color:0xe3b98b,roughness:.8});
+  const darkMat=new THREE.MeshStandardMaterial({color:0x303841});
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.48,.95,8,14),bodyMat);body.position.y=1.15;body.castShadow=true;g.add(body);
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.72,.72,.72),skinMat);head.position.y=2.2;head.castShadow=true;g.add(head);
+  const sword=new THREE.Mesh(new THREE.BoxGeometry(.12,1.35,.12),darkMat);sword.position.set(.56,1.22,-.08);sword.rotation.z=-.18;sword.castShadow=true;g.add(sword);
+  const arrowMat=new THREE.MeshBasicMaterial({color:0x56c9ff,transparent:true,opacity:.9,side:THREE.DoubleSide});
+  const shape=new THREE.Shape();shape.moveTo(0,.7);shape.lineTo(-.28,.12);shape.lineTo(-.1,.12);shape.lineTo(-.1,-.45);shape.lineTo(.1,-.45);shape.lineTo(.1,.12);shape.lineTo(.28,.12);shape.closePath();
+  const arrow=new THREE.Mesh(new THREE.ShapeGeometry(shape),arrowMat);arrow.rotation.x=-Math.PI/2;arrow.rotation.z=Math.PI;arrow.position.set(0,.03,-.95);g.add(arrow);
+  g.position.set(0,0,0);scene.add(g);
+  return g;
+});
+if(!player){fatal('Player',new Error('Player生成失敗'));throw new Error('Player unavailable')}
+
+const camera=safe('Camera',()=>{
+  const c=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,140);
+  c.position.set(0,5.6,7.5);c.lookAt(0,1.2,0);
+  return c;
+});
+if(!camera){fatal('Camera',new Error('Camera生成失敗'));throw new Error('Camera unavailable')}
+
+const state={
+  lv:1,hp:180,maxHp:180,mp:100,maxMp:100,st:100,maxSt:100,gold:120,
+  atk:24,guard:false,dodge:0,skillCd:0,attackCd:0,kills:0
+};
+let joy={x:0,y:0},yaw=0,pitch=.42,cameraDist=6.8;
+let dragging=false,lastX=0,lastY=0;
+
+safe('Controls',()=>{
+  const stick=document.getElementById('stick'),knob=document.getElementById('knob');
+  let stickId=null;
+  const updateStick=(e)=>{
+    const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+    let dx=e.clientX-cx,dy=e.clientY-cy;const max=r.width*.31,d=Math.hypot(dx,dy);
+    if(d>max){dx=dx/d*max;dy=dy/d*max}
+    joy.x=dx/max;joy.y=dy/max;
+    knob.style.transform=`translate(${dx}px,${dy}px)`;
+  };
+  stick.addEventListener('pointerdown',e=>{stickId=e.pointerId;stick.setPointerCapture(e.pointerId);updateStick(e)});
+  stick.addEventListener('pointermove',e=>{if(e.pointerId===stickId)updateStick(e)});
+  const end=e=>{if(e.pointerId===stickId){stickId=null;joy.x=joy.y=0;knob.style.transform='translate(0,0)'}};
+  stick.addEventListener('pointerup',end);stick.addEventListener('pointercancel',end);
+
+  canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId)});
+  canvas.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
+    yaw-=dx*.006;pitch=Math.max(.12,Math.min(1.0,pitch+dy*.0045));
+  });
+  const endCam=()=>dragging=false;
+  canvas.addEventListener('pointerup',endCam);canvas.addEventListener('pointercancel',endCam);
+  return true;
+});
+
+const enemyMat=new THREE.MeshStandardMaterial({color:0xb4544a,roughness:.75});
+const enemies=[];
+function spawnEnemy(x,z,boss=false){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(boss?.7:.48,boss?1.3:.85,8,12),enemyMat.clone());
+  body.position.y=boss?1.3:1.0;body.castShadow=true;g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(boss?.58:.4,12,8),new THREE.MeshStandardMaterial({color:boss?0x67222b:0xd56b52}));
+  head.position.y=boss?2.55:1.95;head.castShadow=true;g.add(head);
+  g.position.set(x,0,z);scene.add(g);
+  enemies.push({obj:g,hp:boss?650:100,maxHp:boss?650:100,atk:boss?28:12,speed:boss?1.15:1.5,boss,alive:true,cd:0,wind:0});
+}
+safe('Enemies',()=>{
+  spawnEnemy(6,-4);spawnEnemy(-7,-8);spawnEnemy(11,9);spawnEnemy(-11,7);spawnEnemy(0,-18,true);
+  return true;
+});
+
+let combatReady=false;
+function nearestEnemy(range=2.3){
+  let best=null,bd=999;
+  for(const e of enemies){
+    if(!e.alive)continue;
+    const d=player.position.distanceTo(e.obj.position);
+    if(d<range&&d<bd){best=e;bd=d}
+  }
+  return best;
+}
+function msg(t){
+  messageEl.textContent=t;messageEl.classList.add('show');
+  clearTimeout(msg._t);msg._t=setTimeout(()=>messageEl.classList.remove('show'),1800);
+}
+function damageEnemy(e,dmg){
+  e.hp-=dmg;
+  if(e.hp<=0){
+    e.alive=false;e.obj.visible=false;state.kills++;state.gold+=e.boss?300:30;
+    msg(e.boss?'🏆 ボス撃破！':'⚔️ 敵を撃破');
+  }
+}
+function attack(){
+  if(!combatReady||state.attackCd>0)return;
+  state.attackCd=.32;
+  const e=nearestEnemy(2.5);
+  if(!e){msg('⚔️ 空振り');return}
+  damageEnemy(e,state.atk+Math.floor(Math.random()*10));msg('⚔️ 攻撃命中');
+}
+function skill(){
+  if(!combatReady||state.skillCd>0||state.mp<18)return;
+  state.mp-=18;state.skillCd=1.4;
+  let hit=0;
+  for(const e of enemies)if(e.alive&&player.position.distanceTo(e.obj.position)<4){damageEnemy(e,46+state.lv*4);hit++}
+  msg(`🔥 スキル ${hit}体命中`);
+}
+function dodge(){
+  if(state.st<20)return;state.st-=20;state.dodge=.38;msg('💨 回避');
+}
+function heal(){
+  if(state.mp<12)return;state.mp-=12;state.hp=Math.min(state.maxHp,state.hp+55);msg('✨ 回復');
+}
+safe('Combat',()=>{
+  document.getElementById('attackBtn').onclick=attack;
+  document.getElementById('skillBtn').onclick=skill;
+  document.getElementById('dodgeBtn').onclick=dodge;
+  document.getElementById('guardBtn').onclick=()=>{state.guard=!state.guard;msg(state.guard?'🛡️ 防御ON':'🛡️ 防御OFF')};
+  document.getElementById('healBtn').onclick=heal;
+  document.getElementById('interactBtn').onclick=()=>{
+    const d=Math.hypot(player.position.x-14,player.position.z+14);
+    msg(d<4?'🏰 古い監視塔を発見':'🔎 周囲を調べた');
+  };
+  combatReady=true;return true;
+});
+
+const director={tick:0,last:0,mood:'balanced'};
+safe('AI',()=>{
+  director.update=(dt)=>{
+    director.last+=dt;if(director.last<5)return;director.last=0;director.tick++;
+    const hpRate=state.hp/state.maxHp;
+    director.mood=hpRate<.35?'support':state.kills>=4?'challenge':'balanced';
+    if(director.mood==='support'&&Math.random()<.35)state.hp=Math.min(state.maxHp,state.hp+12);
+  };
+  return true;
+});
+
+const SAVE_KEY='yuusha_v20_safe_core';
+function saveGame(){
+  const data={state,pos:{x:player.position.x,y:player.position.y,z:player.position.z},yaw,pitch,enemies:enemies.map(e=>({hp:e.hp,alive:e.alive}))};
+  localStorage.setItem(SAVE_KEY,JSON.stringify(data));msg('💾 セーブ');
+}
+function loadGame(){
+  const raw=localStorage.getItem(SAVE_KEY);if(!raw)return;
+  try{
+    const d=JSON.parse(raw);Object.assign(state,d.state||{});
+    if(d.pos)player.position.set(d.pos.x||0,d.pos.y||0,d.pos.z||0);
+    yaw=Number.isFinite(d.yaw)?d.yaw:0;pitch=Number.isFinite(d.pitch)?d.pitch:.42;
+    if(Array.isArray(d.enemies))d.enemies.forEach((v,i)=>{if(enemies[i]&&v){enemies[i].hp=v.hp;enemies[i].alive=!!v.alive;enemies[i].obj.visible=enemies[i].alive}});
+    msg('📂 セーブ読込');
+  }catch(e){console.warn(e)}
+}
+safe('Save',()=>{
+  document.getElementById('quickSave').onclick=saveGame;
+  window.addEventListener('pagehide',saveGame);
+  setInterval(saveGame,45000);
+  loadGame();
+  return true;
+});
+
+document.getElementById('diagToggle').onclick=()=>diag.classList.toggle('open');
+
+const hud=document.getElementById('hud');
+const mini=document.getElementById('mini');
+const mctx=mini.getContext('2d');
+function updateHUD(){
+  const hp=state.hp/state.maxHp*100,mp=state.mp/state.maxMp*100,st=state.st/state.maxSt*100;
+  hud.innerHTML=`Lv.${state.lv}　💰${state.gold}G<br>
+❤️ <span class="bar"><span class="fill hp" style="width:${hp}%"></span></span> ${Math.ceil(state.hp)}<br>
+💧 <span class="bar"><span class="fill mp" style="width:${mp}%"></span></span><br>
+🟢 <span class="bar"><span class="fill st" style="width:${st}%"></span></span><br>
+⚔️ 撃破 ${state.kills}　🤖 ${director.mood}`;
+}
+function drawMini(){
+  const w=mini.width=152,h=mini.height=152;
+  mctx.clearRect(0,0,w,h);mctx.fillStyle='#101c27';mctx.fillRect(0,0,w,h);
+  const sx=w/2,sy=h/2,scale=2.0;
+  mctx.fillStyle='#55a7ff';mctx.beginPath();mctx.arc(sx,sy,5,0,Math.PI*2);mctx.fill();
+  mctx.fillStyle='#ff5c61';
+  for(const e of enemies){
+    if(!e.alive)continue;
+    const dx=(e.obj.position.x-player.position.x)*scale,dz=(e.obj.position.z-player.position.z)*scale;
+    if(Math.abs(dx)<w/2-5&&Math.abs(dz)<h/2-5){mctx.beginPath();mctx.arc(sx+dx,sy+dz,e.boss?5:3,0,Math.PI*2);mctx.fill()}
+  }
+}
+
+let clock=new THREE.Clock(),lastMove=false;
+function update(dt){
+  state.attackCd=Math.max(0,state.attackCd-dt);
+  state.skillCd=Math.max(0,state.skillCd-dt);
+  state.dodge=Math.max(0,state.dodge-dt);
+  state.st=Math.min(state.maxSt,state.st+22*dt);
+  state.mp=Math.min(state.maxMp,state.mp+4*dt);
+
+  const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+  const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+  const move=new THREE.Vector3().addScaledVector(right,joy.x).addScaledVector(forward,-joy.y);
+  if(move.lengthSq()>.01){
+    move.normalize();const speed=state.dodge>0?8.5:4.7;
+    player.position.addScaledVector(move,speed*dt);
+    player.rotation.y=Math.atan2(move.x,move.z);
+    lastMove=true;
+  }else lastMove=false;
+
+  // enemy AI isolated per-enemy
+  for(const e of enemies){
+    if(!e.alive)continue;
+    e.cd=Math.max(0,e.cd-dt);e.wind=Math.max(0,e.wind-dt);
+    const toP=player.position.clone().sub(e.obj.position);toP.y=0;const d=toP.length();
+    if(d>1.6&&d<18){toP.normalize();e.obj.position.addScaledVector(toP,e.speed*dt);e.obj.rotation.y=Math.atan2(toP.x,toP.z)}
+    if(d<2&&e.cd<=0){
+      e.cd=e.boss?1.25:1.8;e.wind=e.boss?.45:.7;
+      setTimeout(()=>{
+        if(!e.alive)return;
+        const dd=player.position.distanceTo(e.obj.position);
+        if(dd<2.3){
+          if(state.dodge>0){msg('✨ ジャスト回避')}
+          else{
+            let dm=e.atk;if(state.guard)dm=Math.floor(dm*.45);
+            state.hp-=dm;msg(`💥 ${dm}ダメージ`);
+            if(state.hp<=0){state.hp=state.maxHp;state.mp=state.maxMp;player.position.set(0,0,0);msg('💫 王都へ帰還')}
+          }
+        }
+      },Math.floor(e.wind*1000));
+    }
+  }
+
+  director.update(dt);
+
+  const horiz=Math.cos(pitch)*cameraDist,cy=Math.sin(pitch)*cameraDist+1.2;
+  const desired=player.position.clone().add(new THREE.Vector3(Math.sin(yaw)*horiz,cy,Math.cos(yaw)*horiz));
+  camera.position.lerp(desired,.14);
+  camera.lookAt(player.position.x,player.position.y+1.3,player.position.z);
+
+  updateHUD();drawMini();
+  objective.textContent=state.kills<3?'目的：敵を3体倒す':enemies.some(e=>e.boss&&e.alive)?'目的：北のボスを倒す':'目的：自由探索';
+}
+
+function loop(){
+  const dt=Math.min(.033,clock.getDelta());
+  try{update(dt)}catch(e){console.error('update',e);setStatus('AI','fail','update loop: '+e.message)}
+  try{renderer.render(scene,camera)}catch(e){fatal('Renderer',e);return}
+  requestAnimationFrame(loop);
+}
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight,false);
+});
+
+setTimeout(()=>{
+  boot.style.display='none';
+  objective.textContent='目的：敵を3体倒す';
+},450);
+
+loop();
+</script>
+</body>
+</html>
