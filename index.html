@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#071018">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>勇者の冒険 REAL v19 PROJECT FREE</title>
+<link rel="stylesheet" href="./styles/game.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="crosshair"></div><div id="damageLayer"></div><div id="nemesisCard"></div><div id="zoneBanner"></div><div id="objectiveBox">目的：自由探索</div><div id="perfChip">FPS --</div><div id="checkpointChip">📍 王都</div><div id="bossTelegraph"></div><div id="dialogBox"><div id="dialogName"></div><div id="dialogText"></div><div id="dialogChoices"></div></div><div id="storyChip">物語：AIがあなたの行動から展開を生成中</div>
+<div id="hud">
+  <div id="stats" class="panel"></div>
+  <canvas id="mini" width="110" height="110"></canvas>
+</div>
+<div id="facingHelp">🔷 水色の矢印＝キャラクターの正面</div>
+<div id="boss"><div id="bossName"></div><div class="bar"><div id="bossBar" class="fill hp"></div></div></div>
+<div id="titleBadge" class="panel">称号：駆け出しの冒険者</div>
+<div id="worldFeed"></div>
+<div id="notice"></div>
+<div id="liveAIStatus" class="panel" style="display:none;position:fixed;right:10px;bottom:160px;z-index:15;padding:7px 9px;font-size:10px;max-width:190px;pointer-events:none">
+🤖 LIVE AI
+</div><div id="eventBanner" class="panel" style="display:none;position:fixed;top:22%;left:50%;transform:translateX(-50%);z-index:45;padding:10px 16px;text-align:center;border-color:#ffd66a88"></div>
+<div id="log" class="panel">REAL v19 PROJECT FREE：探索・採掘・建築・戦闘・クラフト・ユニークボスを統合。</div>
+
+<button id="menuToggle" aria-label="メニュー">☰</button>
+<div id="menu">
+ <button class="small" onclick="openModal('weapons')">⚔️</button>
+ <button class="small" onclick="openModal('bag')">🎒</button>
+ <button class="small" onclick="openModal('catalog')">📖</button>
+ <button class="small" onclick="openModal('shop')">💰</button>
+ <button class="small" onclick="openModal('forge')">⚒️</button>
+ <button class="small" id="mineMenuBtn">⛏️採掘</button>
+ <button class="small" id="buildMenuBtn">🧱建築</button>
+ <button class="small" onclick="openModal('craft')">🔨</button>
+ <button class="small" onclick="openModal('quests')">📜</button>
+ <button class="small" onclick="openModal('skills')">🌳</button>
+ <button class="small" onclick="openModal('aiMaster')">🤖</button>
+ <button class="small" onclick="openModal('liveAI')">🧠</button>
+ <button class="small" onclick="openModal('selfHeal')">🛠️</button>
+ <button class="small" onclick="openModal('saveSlots')">💾3</button>
+ <button class="small" onclick="openModal('settingsPanel')">⚙️</button>
+ <button class="small" onclick="openModal('backendAI')">☁️AI</button>
+ <button class="small" onclick="openModal('originAI')">🧬AI</button>
+ <button class="small" onclick="openModal('worldAI')">🌍AI</button>
+ <button class="small" onclick="openModal('classMenu')">🧬</button>
+ <button class="small" onclick="openModal('endgame')">♾️</button>
+ <button class="small" onclick="saveGame()">💾</button>
+ <button class="small" onclick="loadGame()">📂</button>
+</div>
+
+<button id="quickHeal" aria-label="クイック回復">🧪</button><div id="controls">
+ <div id="stick"><div id="knob"></div></div>
+ <div id="actions">
+  <button class="action" id="attackBtn"><b>⚔️</b>攻撃</button>
+  <button class="action" id="skillBtn"><b>🔥</b>技</button>
+  <button class="action" id="dodgeBtn"><b>💨</b>回避</button>
+  <button class="action" id="guardBtn"><b>🛡️</b>防御</button>
+  <button class="action" id="healBtn"><b>✨</b>回復</button>
+  <button class="action" id="burstBtn"><b>⚡</b>必殺</button>
+  <button class="action" id="interactBtn"><b>💬</b>調べる</button>
+ </div>
+</div>
+
+<div id="weapons" class="modal"><h2>⚔️ 武器</h2><div id="weaponContent"></div><button class="small" onclick="closeModal('weapons')">閉じる</button></div>
+<div id="bag" class="modal"><h2>🎒 装備・素材</h2><div id="bagContent"></div><button class="small" onclick="closeModal('bag')">閉じる</button></div>
+<div id="catalog" class="modal"><h2>📖 アイテム図鑑</h2><div id="catalogContent"></div><button class="small" onclick="closeModal('catalog')">閉じる</button></div>
+<div id="shop" class="modal"><h2>💰 売買</h2><div id="shopContent"></div><button class="small" onclick="closeModal('shop')">閉じる</button></div>
+<div id="forge" class="modal"><h2>⚒️ 鍛冶強化</h2><div id="forgeContent"></div><button class="small" onclick="closeModal('forge')">閉じる</button></div>
+<div id="craft" class="modal"><h2>🔨 クラフト</h2><div id="craftContent"></div><button class="small" onclick="closeModal('craft')">閉じる</button></div>
+<div id="quests" class="modal"><h2>📜 クエスト</h2><div id="questContent"></div><button class="small" onclick="closeModal('quests')">閉じる</button></div>
+<div id="skills" class="modal"><h2>🌳 スキル</h2><div id="skillContent"></div><button class="small" onclick="closeModal('skills')">閉じる</button></div>
+<div id="aiMaster" class="modal"><h2>🤖 AI WORLD MASTER</h2><div id="aiMasterContent"></div><button class="small" onclick="closeModal('aiMaster')">閉じる</button></div>
+<div id="liveAI" class="modal"><h2>🧠 LIVE AI Director</h2><div id="liveAIContent"></div><button class="small" onclick="closeModal('liveAI')">閉じる</button></div>
+<div id="originAI" class="modal"><h2>🧬 AI ORIGIN</h2><div id="originAIContent"></div><button class="small" onclick="closeModal('originAI')">閉じる</button></div>
+<div id="worldAI" class="modal"><h2>🌍 PERSONAL WORLD AI</h2><div id="worldAIContent"></div><button class="small" onclick="window.forceWorldDecision()">AI更新</button><button class="small" onclick="closeModal('worldAI')">閉じる</button></div>
+<div id="saveSlots" class="modal"><h2>💾 セーブスロット</h2><div id="saveSlotsContent"></div><button class="small" onclick="closeModal('saveSlots')">閉じる</button></div>
+<div id="settingsPanel" class="modal"><h2>⚙️ 設定</h2><div id="settingsContent"></div><button class="small" onclick="closeModal('settingsPanel')">閉じる</button></div>
+<div id="backendAI" class="modal"><h2>☁️ 生成AIバックエンド</h2><div id="backendContent"></div><button class="small" onclick="closeModal('backendAI')">閉じる</button></div>
+<div id="selfHeal" class="modal"><h2>🛠️ SELF HEAL AI</h2><div id="selfHealContent"></div><button class="small" onclick="window.resetHeal()">隔離機能を再起動</button><button class="small" onclick="window.safeRestart()">安全モード再起動</button><button class="small" onclick="closeModal('selfHeal')">閉じる</button></div>
+<div id="classMenu" class="modal"><h2>🧬 職業</h2><div id="classContent"></div><button class="small" onclick="closeModal('classMenu')">閉じる</button></div>
+<div id="endgame" class="modal"><h2>♾️ エンドコンテンツ</h2><div id="endgameContent"></div><button class="small" onclick="closeModal('endgame')">閉じる</button></div>
+
+
+<div id="bootError" style="display:none;position:fixed;inset:10% 5%;z-index:9999;padding:18px;background:#22080df4;color:#fff;border:2px solid #ff5566;border-radius:16px;overflow:auto;font:14px/1.5 -apple-system,sans-serif">
+<strong style="font-size:19px">⚠️ SELF HEAL AI 診断</strong><div id="bootErrorText" style="margin-top:10px;white-space:pre-wrap"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+<button onclick="window.__selfHealSafeRestart()" style="padding:10px;border-radius:10px">🛠️ 安全モード再起動</button>
+<button onclick="window.__selfHealClearSave()" style="padding:10px;border-radius:10px">🧹 セーブ隔離</button>
+<button onclick="document.getElementById('bootError').style.display='none'" style="padding:10px;border-radius:10px">閉じる</button>
+</div></div>
+<script src="./src/boot.js"></script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
