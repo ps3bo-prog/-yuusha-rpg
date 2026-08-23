@@ -1,0 +1,8 @@
+{
+  "name": "yuusha-rpg-real-v19-project-free",
+  "version": "19.0.0",
+  "private": true,
+  "scripts": {
+    "serve": "python3 -m http.server 8080"
+  }
+}
