@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#081018">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>勇者の冒険 REAL v5 AI</title>
+<style>
+:root{--panel:rgba(7,11,16,.86);--line:rgba(255,255,255,.14)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:#071018;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden;touch-action:none}
+#app{position:fixed;inset:0}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;background:#17351f}
+.panel{background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px #0008}
+#hud{position:absolute;top:max(8px,env(safe-area-inset-top));left:8px;right:8px;z-index:10;display:flex;gap:8px;justify-content:space-between;align-items:start}
+#stats{padding:8px 10px;min-width:235px;font-size:12px;line-height:1.5}
+.bar{width:140px;height:8px;background:#ffffff18;border-radius:99px;overflow:hidden;display:inline-block;vertical-align:middle}
+.fill{height:100%;border-radius:99px}.hp{background:linear-gradient(90deg,#ff3e55,#ff8a59)}.mp{background:linear-gradient(90deg,#3b85ff,#63d7ff)}.xp{background:linear-gradient(90deg,#e9b74d,#ffe79d)}
+#minimap{width:120px;height:120px;border-radius:14px;background:#0b1118;border:1px solid var(--line)}
+#aiInfo{position:absolute;left:10px;top:145px;z-index:10;padding:8px 10px;font-size:11px;max-width:290px}
+#bossHud{display:none;position:absolute;top:92px;left:50%;transform:translateX(-50%);z-index:10;width:min(86vw,640px);padding:8px 12px;text-align:center;background:#18090de8;border:1px solid #ff586655;border-radius:13px}
+#bossHud .bar{width:82%;height:10px}
+#log{position:absolute;left:50%;transform:translateX(-50%);bottom:120px;width:min(92vw,700px);z-index:9;padding:8px 12px;font-size:13px;min-height:40px;text-align:center}
+#controls{position:absolute;left:0;right:0;bottom:max(10px,env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:end;padding:0 15px;z-index:12;pointer-events:none}
+#stick{width:145px;height:145px;border-radius:50%;background:#ffffff10;border:1px solid #ffffff22;position:relative;pointer-events:auto;box-shadow:inset 0 0 35px #0008}
+#knob{position:absolute;width:66px;height:66px;border-radius:50%;left:39px;top:39px;background:linear-gradient(#ffffff3a,#ffffff14);border:1px solid #ffffff55}
+#actions{display:grid;grid-template-columns:repeat(3,61px);gap:8px;pointer-events:auto}
+.action{width:61px;height:61px;border-radius:50%;border:1px solid #ffffff44;background:linear-gradient(#2b3948df,#121a23f0);color:#fff;font-size:10px;font-weight:700}
+.action b{display:block;font-size:22px}.action:active{transform:scale(.94)}
+#menu{position:absolute;right:10px;top:145px;z-index:13;display:flex;gap:6px;flex-wrap:wrap;max-width:210px;justify-content:flex-end}
+.small{border:1px solid var(--line);background:var(--panel);color:#fff;border-radius:10px;padding:7px 9px;font-size:12px}
+#allyPanel{position:absolute;right:10px;bottom:120px;z-index:10;padding:8px 10px;font-size:11px;min-width:190px}
+@media(max-width:700px){#minimap{width:92px;height:92px}#stats{min-width:190px}.bar{width:105px}#aiInfo{display:none}#allyPanel{right:8px;bottom:112px;min-width:160px}#stick{width:126px;height:126px}#knob{width:58px;height:58px;left:34px;top:34px}#actions{grid-template-columns:repeat(3,55px)}.action{width:55px;height:55px}}
+</style>
+</head>
+<body>
+<div id="app">
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="stats" class="panel"></div>
+  <canvas id="minimap" width="120" height="120"></canvas>
+</div>
+
+<div id="bossHud"><div id="bossName"></div><div class="bar"><div id="bossBar" class="fill hp"></div></div></div>
+<div id="aiInfo" class="panel">🤖 AI Director：プレイヤーの回避率・被弾率・攻撃頻度を見て敵AIを調整します。</div>
+<div id="allyPanel" class="panel"></div>
+<div id="log" class="panel">REAL v5 AI：敵AI・仲間AI・適応型ボスAIを追加。</div>
+
+<div id="menu">
+ <button class="small" onclick="saveGame()">💾</button>
+ <button class="small" onclick="loadGame()">📂</button>
+ <button class="small" onclick="cycleTactic()">🤝 作戦</button>
+</div>
+
+<div id="controls">
+ <div id="stick"><div id="knob"></div></div>
+ <div id="actions">
+  <button class="action" id="attackBtn"><b>⚔️</b>攻撃</button>
+  <button class="action" id="skillBtn"><b>🔥</b>スキル</button>
+  <button class="action" id="dodgeBtn"><b>💨</b>回避</button>
+  <button class="action" id="healBtn"><b>✨</b>回復</button>
+  <button class="action" id="burstBtn"><b>⚡</b>必殺</button>
+  <button class="action" id="interactBtn"><b>💬</b>調べる</button>
+ </div>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),mini=document.getElementById('minimap'),mctx=mini.getContext('2d');
+const DPR=Math.min(devicePixelRatio||1,2);
+function resize(){canvas.width=innerWidth*DPR;canvas.height=innerHeight*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+addEventListener('resize',resize);resize();
+
+const WORLD={w:5600,h:3800};
+const p={x:700,y:1900,r:18,hp:180,maxHp:180,mp:70,maxMp:70,lv:1,xp:0,gold:200,sp:0,speed:190,atk:34,burst:0};
+let joy={x:0,y:0},cam={x:0,y:0},last=performance.now(),attackCD=0,skillCD=0,dodgeUntil=0,hitFlash=0,burstCD=0;
+let aiMetrics={attacks:0,hits:0,dodges:0,perfectDodges:0,damageTaken:0,lastAdapt:0};
+let director={aggression:1,spread:1,punishDodge:0,punishSpam:0};
+let allyTactic='balanced';
+
+const lakes=[{x:1400,y:2750,rx:430,ry:250},{x:3200,y:1100,rx:460,ry:250}];
+const forests=[{x:1200,y:1200,r:600},{x:2500,y:2550,r:550},{x:4200,y:1600,r:650}];
+const bosses=[{x:2850,y:2200,type:'boss1'},{x:4200,y:700,type:'boss2'},{x:5100,y:3000,type:'boss3'}];
+
+function terrainAt(x,y){for(const l of lakes)if(((x-l.x)/l.rx)**2+((y-l.y)/l.ry)**2<1)return'water';for(const f of forests)if(Math.hypot(x-f.x,y-f.y)<f.r)return'forest';return y<550?'snow':y>3100?'desert':'grass'}
+function blocked(x,y){return x<40||y<40||x>WORLD.w-40||y>WORLD.h-40||terrainAt(x,y)==='water'}
+
+const allies=[
+ {name:'戦士レオン',icon:'🛡️',x:p.x-35,y:p.y+25,hp:150,maxHp:150,atk:24,speed:165,role:'tank',cd:0},
+ {name:'魔導士ミラ',icon:'🧙',x:p.x+35,y:p.y+25,hp:95,maxHp:95,atk:30,speed:155,role:'mage',cd:0},
+ {name:'僧侶セラ',icon:'✨',x:p.x,y:p.y+55,hp:110,maxHp:110,atk:14,speed:150,role:'healer',cd:0}
+];
+
+function makeEnemy(type,x,y,boss=false){
+ const M={
+ slime:['スライム','🟢',70,10,76,18,15],
+ wolf:['ダークウルフ','🐺',110,15,112,30,22],
+ orc:['オーク','👹',170,21,72,46,36],
+ boss1:['炎獄騎士ヴァルガ','🔥',850,31,86,260,500],
+ boss2:['氷帝フェンリル','🐺',1300,37,108,360,850],
+ boss3:['深淵王アビス','🐉',2300,48,96,720,1850]
+ };
+ let a=M[type];return{type,name:a[0],emoji:a[1],hp:a[2],maxHp:a[2],atk:a[3],speed:a[4],xp:a[5],gold:a[6],x,y,r:boss?40:21,boss,alive:true,nextAtk:0,windup:0,mode:'idle',phase:1,target:'player',memory:{lastPlayerDodge:0,lastPlayerAttack:0}};
+}
+const enemies=[];
+for(let i=0;i<42;i++){let f=forests[i%3],a=Math.random()*Math.PI*2,r=Math.random()*f.r,t=i%6===0?'orc':i%2?'wolf':'slime';enemies.push(makeEnemy(t,f.x+Math.cos(a)*r,f.y+Math.sin(a)*r))}
+enemies.push(makeEnemy('boss1',2850,2200,true));enemies.push(makeEnemy('boss2',4200,700,true));enemies.push(makeEnemy('boss3',5100,3000,true));
+
+const logEl=document.getElementById('log'),bossHud=document.getElementById('bossHud'),bossName=document.getElementById('bossName'),bossBar=document.getElementById('bossBar');
+function msg(t){logEl.textContent=t}
+function nearestEnemy(range=160){let b=null,d0=1e9;for(const e of enemies){if(!e.alive)continue;let d=Math.hypot(e.x-p.x,e.y-p.y);if(d<range&&d<d0){b=e;d0=d}}return b}
+
+function adaptAI(){
+ const now=performance.now();
+ if(now-director.lastAdapt<3500)return;
+ director.lastAdapt=now;
+ const dodgeRate=aiMetrics.dodges/Math.max(1,aiMetrics.hits+aiMetrics.dodges);
+ const attackRate=aiMetrics.attacks/Math.max(1,(now/1000));
+ director.punishDodge=dodgeRate>.45?1:0;
+ director.punishSpam=attackRate>.85?1:0;
+ director.aggression=aiMetrics.damageTaken<120?1.2:0.9;
+ director.spread=director.punishDodge?1.35:1;
+ document.getElementById('aiInfo').textContent=`🤖 AI Director：攻撃性 ${director.aggression.toFixed(1)} / 回避対策 ${director.punishDodge?'ON':'OFF'} / 連打対策 ${director.punishSpam?'ON':'OFF'}`;
+}
+
+function drawWorld(){
+ const w=innerWidth,h=innerHeight;
+ cam.x=Math.max(0,Math.min(WORLD.w-w,p.x-w/2));cam.y=Math.max(0,Math.min(WORLD.h-h,p.y-h/2));
+ ctx.fillStyle='#315d39';ctx.fillRect(0,0,w,h);
+ const g=80;
+ for(let gx=Math.floor(cam.x/g)*g;gx<cam.x+w+g;gx+=g)for(let gy=Math.floor(cam.y/g)*g;gy<cam.y+h+g;gy+=g){
+  let t=terrainAt(gx,gy);ctx.fillStyle=t==='forest'?'#23472a':t==='water'?'#235777':t==='snow'?'#d1dce0':t==='desert'?'#8d7548':'#315d39';ctx.fillRect(gx-cam.x,gy-cam.y,g+1,g+1);
+  if(t==='forest'&&(gx+gy)%160===0){ctx.font='24px serif';ctx.fillText('🌲',gx-cam.x+18,gy-cam.y+35)}
+ }
+ for(const l of lakes){ctx.save();ctx.translate(l.x-cam.x,l.y-cam.y);ctx.scale(l.rx,l.ry);ctx.beginPath();ctx.arc(0,0,1,0,7);ctx.fillStyle='#21678c';ctx.fill();ctx.restore()}
+ ctx.font='40px serif';ctx.fillText('🏰',700-cam.x-20,1900-cam.y+14);ctx.fillText('🗿',2850-cam.x-20,2200-cam.y+14);ctx.fillText('🏯',4200-cam.x-20,700-cam.y+14);ctx.fillText('🌑',5100-cam.x-20,3000-cam.y+14);
+}
+function drawEntity(x,y,emoji,size=32,glow=null){
+ const sx=x-cam.x,sy=y-cam.y;if(sx<-80||sy<-80||sx>innerWidth+80||sy>innerHeight+80)return;
+ ctx.save();ctx.translate(sx,sy);if(glow){ctx.shadowColor=glow;ctx.shadowBlur=20}ctx.font=`${size}px serif`;ctx.textAlign='center';ctx.fillText(emoji,0,size*.3);ctx.restore();ctx.textAlign='left';
+}
+function drawEnemy(e){
+ if(!e.alive)return;let sx=e.x-cam.x,sy=e.y-cam.y;if(sx<-90||sy<-90||sx>innerWidth+90||sy>innerHeight+90)return;
+ ctx.save();ctx.translate(sx,sy);
+ if(e.windup>0){ctx.strokeStyle=e.boss?'#ff3d55':'#ff7448';ctx.lineWidth=5;ctx.globalAlpha=.5+.25*Math.sin(performance.now()/55);ctx.beginPath();ctx.arc(0,0,e.r+42*director.spread,0,7);ctx.stroke();ctx.globalAlpha=1}
+ if(e.boss){ctx.shadowColor='#ff4567';ctx.shadowBlur=25}
+ ctx.font=`${e.r*2}px serif`;ctx.textAlign='center';ctx.fillText(e.emoji,0,e.r*.7);
+ ctx.shadowBlur=0;ctx.fillStyle='#0009';ctx.fillRect(-35,e.r+8,70,6);ctx.fillStyle=e.boss?'#ff4d5d':'#72dd6d';ctx.fillRect(-35,e.r+8,70*(e.hp/e.maxHp),6);ctx.restore();
+}
+function drawPlayer(){drawEntity(p.x,p.y,'🧑‍⚔️',32,'#4fa5ff');if(hitFlash>0){ctx.fillStyle='#ff333355';ctx.beginPath();ctx.arc(p.x-cam.x,p.y-cam.y,30,0,7);ctx.fill()}}
+function drawAllies(){for(const a of allies)drawEntity(a.x,a.y,a.icon,28,a.role==='healer'?'#77ffbb':'#aaccff')}
+
+function attack(){
+ if(attackCD>0)return;attackCD=.28;aiMetrics.attacks++;
+ let e=nearestEnemy(115);if(!e)return msg('⚔️ 空振り');
+ let dmg=Math.floor(p.atk+p.lv*3+Math.random()*10);e.hp-=dmg;p.burst=Math.min(100,p.burst+9);msg(`⚔️ ${e.name}に ${dmg}ダメージ`);
+ if(e.hp<=0)kill(e);
+}
+function skill(){
+ if(skillCD>0||p.mp<12)return;skillCD=1.7;p.mp-=12;let hit=0;
+ for(const e of enemies)if(e.alive&&Math.hypot(e.x-p.x,e.y-p.y)<190){let d=58+p.lv*8;e.hp-=d;hit++;if(e.hp<=0)kill(e)}
+ p.burst=Math.min(100,p.burst+14);msg(`🔥 範囲スキル ${hit}体命中`);
+}
+function dodge(){dodgeUntil=Date.now()+650;aiMetrics.dodges++;msg('💨 回避！')}
+function heal(){if(p.mp<10||p.hp>=p.maxHp)return;p.mp-=10;p.hp=Math.min(p.maxHp,p.hp+50+p.lv*6);msg('✨ 回復')}
+function burst(){if(p.burst<100||burstCD>0)return;p.burst=0;burstCD=8;for(const e of enemies)if(e.alive&&Math.hypot(e.x-p.x,e.y-p.y)<260){e.hp-=180+p.lv*20;if(e.hp<=0)kill(e)}msg('⚡ 必殺技「天翔断」！')}
+function interact(){msg('💬 仲間AIと敵AIが周囲の状況を判断しています。')}
+
+function kill(e){e.alive=false;p.xp+=e.xp;p.gold+=e.gold;if(e.boss){p.sp+=2;msg(`🏆 ${e.name}撃破！`)}else msg(`🎉 ${e.name}撃破！`);let need=p.lv*100;if(p.xp>=need){p.xp-=need;p.lv++;p.maxHp+=25;p.hp=p.maxHp;p.maxMp+=8;p.mp=p.maxMp;p.atk+=5;p.sp++;msg(`⬆️ Lv.${p.lv}`)}}
+
+function chooseEnemyMode(e,d){
+ if(e.boss){
+  if(d>260)return 'chase';
+  if(d<90&&director.punishSpam)return 'retreat';
+  if(d<170&&director.punishDodge)return 'burst';
+  return 'pressure';
+ }
+ if(e.type==='wolf')return d>170?'flank':'pressure';
+ if(e.type==='orc')return d<120?'heavy':'chase';
+ return d>130?'chase':'pressure';
+}
+function enemyTargetPos(e){
+ if(e.mode==='flank'){
+  let a=Math.atan2(p.y-e.y,p.x-e.x)+Math.PI/2;
+  return{x:p.x+Math.cos(a)*120,y:p.y+Math.sin(a)*120};
+ }
+ if(e.mode==='retreat'){
+  let dx=e.x-p.x,dy=e.y-p.y,len=Math.hypot(dx,dy)||1;
+  return{x:e.x+dx/len*120,y:e.y+dy/len*120};
+ }
+ return{x:p.x,y:p.y};
+}
+function updateEnemies(dt){
+ let shown=null;
+ for(const e of enemies){
+  if(!e.alive)continue;
+  let d=Math.hypot(e.x-p.x,e.y-p.y);
+  if(e.boss&&d<560)shown=e;
+  if(e.boss&&e.hp<e.maxHp*.5&&e.phase===1){e.phase=2;e.atk+=9;e.speed*=1.25;msg(`💢 ${e.name}が第2形態へ！`)}
+  e.mode=chooseEnemyMode(e,d);
+  let tgt=enemyTargetPos(e),td=Math.hypot(tgt.x-e.x,tgt.y-e.y);
+  if(e.windup<=0&&td>10&&d<420){
+   e.x+=(tgt.x-e.x)/td*e.speed*director.aggression*dt;
+   e.y+=(tgt.y-e.y)/td*e.speed*director.aggression*dt;
+  }
+  e.nextAtk-=dt;
+  if(e.windup>0){
+   e.windup-=dt;
+   if(e.windup<=0){
+    let radius=(e.boss?105:68)*director.spread;
+    let dd=Math.hypot(e.x-p.x,e.y-p.y);
+    if(dd<radius){
+     if(Date.now()<dodgeUntil){aiMetrics.perfectDodges++;p.burst=Math.min(100,p.burst+18);msg('✨ ジャスト回避！')}
+     else{let dmg=e.atk+(e.boss?22:6)+Math.floor(Math.random()*8);p.hp-=dmg;aiMetrics.damageTaken+=dmg;aiMetrics.hits++;hitFlash=.2;msg(`💥 ${e.name} ${dmg}ダメージ`)}
+    }
+   }
+  }else if(d<(e.boss?170:115)&&e.nextAtk<=0){
+   e.nextAtk=e.boss?1.35:1.8;
+   e.windup=e.mode==='heavy'?.9:e.mode==='burst'?.45:e.boss?.75:.55;
+   msg(`⚠️ ${e.name} AI行動：${e.mode}`);
+  }
+ }
+ if(p.hp<=0){p.hp=p.maxHp;p.mp=p.maxMp;p.x=700;p.y=1900;msg('💫 力尽きた。王都へ帰還')}
+ if(shown){bossHud.style.display='block';bossName.textContent=shown.name+' / AI:'+shown.mode;bossBar.style.width=(shown.hp/shown.maxHp*100)+'%'}else bossHud.style.display='none';
+}
+
+function updateAllies(dt){
+ const nearest=nearestEnemy(420);
+ for(const a of allies){
+  a.cd-=dt;
+  let fx=p.x+(a.role==='tank'?-55:a.role==='mage'?55:0),fy=p.y+(a.role==='healer'?70:45);
+  let dFollow=Math.hypot(fx-a.x,fy-a.y);
+  if(dFollow>35){a.x+=(fx-a.x)/dFollow*a.speed*dt;a.y+=(fy-a.y)/dFollow*a.speed*dt}
+  if(!nearest||!nearest.alive)continue;
+  let d=Math.hypot(nearest.x-a.x,nearest.y-a.y);
+  if(a.role==='tank'){
+   if(d<130&&a.cd<=0){nearest.hp-=a.atk;a.cd=1.0;msg('🛡️ レオンが敵を引きつけた！');if(nearest.hp<=0)kill(nearest)}
+  }else if(a.role==='mage'){
+   if(d<300&&a.cd<=0){nearest.hp-=a.atk+18;a.cd=1.4;msg('🧙 ミラの魔法攻撃！');if(nearest.hp<=0)kill(nearest)}
+  }else if(a.role==='healer'){
+   if(p.hp<p.maxHp*(allyTactic==='support'?0.8:0.55)&&a.cd<=0){p.hp=Math.min(p.maxHp,p.hp+28);a.cd=2.2;msg('✨ セラが回復！')}
+   else if(d<220&&a.cd<=0&&allyTactic==='aggressive'){nearest.hp-=a.atk;a.cd=1.6;if(nearest.hp<=0)kill(nearest)}
+  }
+ }
+}
+
+function hud(){
+ let hp=p.hp/p.maxHp*100,mp=p.mp/p.maxMp*100,xp=(p.xp%(p.lv*100))/(p.lv*100)*100;
+ document.getElementById('stats').innerHTML=`Lv.${p.lv}　💰${p.gold}G　SP:${Math.floor(p.sp)}<br>❤️ <span class="bar"><span class="fill hp" style="display:block;width:${hp}%"></span></span><br>💧 <span class="bar"><span class="fill mp" style="display:block;width:${mp}%"></span></span><br>⭐ <span class="bar"><span class="fill xp" style="display:block;width:${xp}%"></span></span><br>⚡ 必殺 ${Math.floor(p.burst)}%`;
+ document.getElementById('allyPanel').innerHTML=`🤝 仲間AI：${allyTactic}<br>${allies.map(a=>a.icon+' '+a.name).join('<br>')}`;
+}
+function minimap(){
+ mctx.clearRect(0,0,120,120);mctx.fillStyle='#14212c';mctx.fillRect(0,0,120,120);
+ for(const e of enemies)if(e.alive&&e.boss){mctx.fillStyle='#ff4d5d';mctx.beginPath();mctx.arc(e.x/WORLD.w*120,e.y/WORLD.h*120,3,0,7);mctx.fill()}
+ mctx.fillStyle='#4aa3ff';mctx.beginPath();mctx.arc(p.x/WORLD.w*120,p.y/WORLD.h*120,4,0,7);mctx.fill();
+}
+function loop(now){
+ let dt=Math.min(.033,(now-last)/1000);last=now;
+ attackCD=Math.max(0,attackCD-dt);skillCD=Math.max(0,skillCD-dt);burstCD=Math.max(0,burstCD-dt);hitFlash=Math.max(0,hitFlash-dt);
+ let len=Math.hypot(joy.x,joy.y);if(len>.05){let nx=joy.x/Math.max(1,len),ny=joy.y/Math.max(1,len),spd=p.speed*(Date.now()<dodgeUntil?1.75:1),tx=p.x+nx*spd*dt,ty=p.y+ny*spd*dt;if(!blocked(tx,p.y))p.x=tx;if(!blocked(p.x,ty))p.y=ty}
+ p.mp=Math.min(p.maxMp,p.mp+2.4*dt);
+ adaptAI();updateEnemies(dt);updateAllies(dt);
+ drawWorld();for(const e of enemies)drawEnemy(e);drawAllies();drawPlayer();hud();minimap();
+ requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+const stick=document.getElementById('stick'),knob=document.getElementById('knob');let active=false;
+function joySet(x,y){let r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=x-cx,dy=y-cy,max=r.width*.32,len=Math.hypot(dx,dy)||1,cl=Math.min(max,len);joy.x=dx/len*(cl/max);joy.y=dy/len*(cl/max);knob.style.transform=`translate(${joy.x*max}px,${joy.y*max}px)`}
+stick.onpointerdown=e=>{active=true;stick.setPointerCapture(e.pointerId);joySet(e.clientX,e.clientY)};stick.onpointermove=e=>{if(active)joySet(e.clientX,e.clientY)};function endJoy(){active=false;joy.x=joy.y=0;knob.style.transform='translate(0,0)'}stick.onpointerup=endJoy;stick.onpointercancel=endJoy;
+
+attackBtn.onpointerdown=attack;skillBtn.onpointerdown=skill;dodgeBtn.onpointerdown=dodge;healBtn.onpointerdown=heal;burstBtn.onpointerdown=burst;interactBtn.onpointerdown=interact;
+
+function cycleTactic(){allyTactic=allyTactic==='balanced'?'aggressive':allyTactic==='aggressive'?'support':'balanced';msg('🤝 仲間作戦：'+allyTactic)}
+function saveGame(){localStorage.setItem('yuusha_real_v5_ai',JSON.stringify({p,allyTactic,aiMetrics,director,enemies:enemies.map(e=>({alive:e.alive,hp:e.hp,phase:e.phase}))}));msg('💾 セーブ')}
+function loadGame(){let s=localStorage.getItem('yuusha_real_v5_ai');if(!s){msg('📂 セーブなし');return}let d=JSON.parse(s);Object.assign(p,d.p);allyTactic=d.allyTactic||'balanced';Object.assign(aiMetrics,d.aiMetrics||{});Object.assign(director,d.director||{});d.enemies?.forEach((v,i)=>{if(enemies[i]){enemies[i].alive=v.alive;enemies[i].hp=v.hp;enemies[i].phase=v.phase||1}});msg('📂 ロード')}
+</script>
+</body>
+</html>
