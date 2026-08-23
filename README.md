@@ -1,20 +1,22 @@
-# 勇者の冒険 REAL v13.4 LIVE AI
+# 勇者の冒険 REAL v14 STABLE + SELF HEAL AI
 
-今回のエラー:
-`ReferenceError: Cannot access 'equippedSet' before initialization`
+JavaScript構文チェック: PASS
 
-原因:
-- 初期 `equipWeapon('sword')` が早い位置で実行されていた
-- `equipWeapon()` → `refreshMenus()` が呼ばれる
-- `refreshMenus()` が `equippedSet` / ITEM_DB / inventory などを参照
-- それらの初期化前だったためJavaScriptが停止
+初期化順チェック:
+- baseCamp → baseCampBuild: PASS (222 → 231)
+- equippedSet → bootGame: PASS (346 → 947)
+- liveAI → enemy spawn: PASS (351 → 383)
+- refreshMenus → bootGame: PASS (841 → 947)
+- SELF_HEAL → bootGame: PASS (399 → 947)
 
-修正:
-- 初期武器装備を、全データ・UI関数の初期化後へ移動
-- baseCamp初期化順序の修正を維持
-- LIVE AI初期化順序の修正を維持
-- 起動エラー表示を維持
-- 過去セーブデータの読み込み互換を維持
+SELF HEAL AI:
+- 実行時エラーをゲーム内記録
+- 問題が出たサブシステムのみ自動隔離
+- SAFE MODE再起動
+- 壊れたセーブの隔離/バックアップ
+- LIVE AI/敵/仲間/HUD/ミニマップ/ワールドイベント/レンダラー個別監視
+- ゲーム内🛠️メニューから状態確認・再起動
 
-GitHub Pagesの `index.html` をこの版に差し替えてCommitしてください。
-確認URL末尾に `?v=134` を付けてください。
+GitHub Pagesでは index.html を差し替えてCommitしてください。
+通常確認: ?v=14
+安全モード: ?v=14&safe=1
