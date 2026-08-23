@@ -1,20 +1,16 @@
-# 勇者の冒険 REAL v13.2 LIVE AI
+# 勇者の冒険 REAL v13.3 LIVE AI
 
-v13.1でも残っていた起動停止バグを修正した版です。
+今回のエラー:
+`ReferenceError: Cannot access 'baseCamp' before initialization`
 
-今回特定した原因:
-- `equipWeapon('sword')` がページ起動途中で実行される
-- `equipWeapon()` 内部から `msg()` が呼ばれる
-- その時点では `logEl` がまだ初期化されていない
-- JavaScriptが ReferenceError で停止
-- 結果としてUIだけ表示され、3Dワールドが起動しない
+原因:
+- `baseCampBuild()` が `baseCamp` の宣言より先に実行されていたため、JavaScriptが停止していました。
 
 修正:
-- 初期武器装備を `logEl` 初期化後へ移動
-- LIVE AI初期化順序修正も維持
-- 起動エラーが残った場合、赤い「起動エラー」画面にエラー内容を表示
-- v13.2専用セーブキー
-- 過去セーブの読み込み互換性を維持
+- `baseCamp` を `baseCampBuild()` より前に初期化
+- v13.2の起動順序修正とエラー表示機能も維持
+- LIVE AI / アイテム / 職業 / ユニークスキル / 採掘 / 建築 / 自由カメラを維持
+- 過去のセーブデータ読み込み互換を維持
 
-GitHub Pagesの `index.html` をこのファイルへ差し替えてCommitしてください。
-確認時はURL末尾に `?v=132` を付けてください。
+GitHub Pagesの `index.html` をこの版に差し替えてCommitしてください。
+確認時はURL末尾に `?v=133` を付けてください。
