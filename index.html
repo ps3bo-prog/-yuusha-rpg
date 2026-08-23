@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#071019">
+<title>勇者の冒険 REAL v27.1 UI & COMBAT RANGE</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071019;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;touch-action:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;background:#0c1c25;image-rendering:pixelated}
+.panel{background:rgba(7,12,18,.76);border:1px solid rgba(255,255,255,.14);border-radius:13px;backdrop-filter:blur(8px)}
+#hud{position:fixed;left:10px;top:max(10px,env(safe-area-inset-top));z-index:20;padding:8px 10px;min-width:190px;font-size:10px;line-height:1.4}
+.bar{display:inline-block;width:80px;height:7px;background:#ffffff18;border-radius:10px;overflow:hidden;vertical-align:middle}
+.fill{display:block;height:100%}.hp{background:#ff675f}.mp{background:#59b9ff}.st{background:#7ada76}.xp{background:#efc75b}
+#objective{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:20;padding:6px 9px;font-size:10px;max-width:58vw;text-align:center}
+#aiChip{position:fixed;left:50%;top:44px;transform:translateX(-50%);z-index:20;padding:5px 8px;font-size:9px;max-width:62vw;text-align:center}
+#eventChip{position:fixed;left:50%;top:72px;transform:translateX(-50%);z-index:20;padding:5px 8px;font-size:9px;max-width:64vw;text-align:center}
+#message{position:fixed;left:50%;bottom:112px;transform:translateX(-50%);z-index:30;padding:7px 10px;font-size:11px;opacity:0;transition:opacity .2s;min-width:170px;text-align:center}
+#message.show{opacity:1}
+#stick{position:fixed;left:18px;bottom:max(22px,calc(env(safe-area-inset-bottom) + 14px));z-index:26;width:108px;height:108px;border-radius:50%;border:1px solid #ffffff35;background:#ffffff10}
+#knob{position:absolute;left:30px;top:30px;width:48px;height:48px;border-radius:50%;background:#ffffff35;border:1px solid #ffffff4c}
+#actions{position:fixed;right:12px;bottom:max(20px,calc(env(safe-area-inset-bottom) + 12px));z-index:26;display:grid;grid-template-columns:repeat(3,45px);gap:6px}
+.action{width:45px;height:45px;border-radius:50%;border:1px solid #ffffff30;background:#132130;color:#fff;font-size:8px;font-weight:700}
+.action b{display:block;font-size:16px}
+#menuBtn,#diagBtn,#aiBtn{position:fixed;right:10px;z-index:28;width:42px;height:42px;border:0;border-radius:11px;background:#101923;color:#fff;font-size:19px}
+#menuBtn{top:92px}#diagBtn{top:140px}#aiBtn{top:188px}
+#gameMenu,#diag,#aiPanel{display:none;position:fixed;left:50%;top:10%;transform:translateX(-50%);z-index:60;width:min(92vw,560px);max-height:76vh;overflow:auto;padding:14px}
+#gameMenu.open,#diag.open,#aiPanel.open{display:block}
+#menuTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.menuTab,.menuBtn2{padding:8px 7px;border:1px solid #ffffff20;border-radius:9px;background:#14202d;color:#fff;font-size:10px}
+.row{padding:8px 0;border-bottom:1px solid #ffffff12;font-size:11px}
+.skill{color:#8fffd4;font-weight:800}.quest{color:#ffd97a}
+#titleScreen{position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,#17334c,#071019 68%)}
+#titleCard{width:min(88vw,430px);padding:22px;text-align:center}
+#titleCard h1{font-size:30px;margin:0 0 8px}
+#titleCard p{font-size:11px;opacity:.85;line-height:1.6}
+#startBtn{padding:12px 18px;border:0;border-radius:12px;background:#2f80ed;color:#fff;font-weight:800;font-size:15px}
+#bossHUD{display:none;position:fixed;left:50%;top:104px;transform:translateX(-50%);z-index:25;width:min(74vw,540px);padding:8px 10px;text-align:center;font-size:10px}
+#bossBar{height:8px;background:#ffffff18;border-radius:9px;overflow:hidden;margin-top:5px}#bossFill{height:100%;background:#ff5c62;width:100%}
+#zone{display:none;position:fixed;left:50%;top:23%;transform:translateX(-50%);z-index:35;padding:10px 16px;font-size:19px;font-weight:900}
+#mythicToast{display:none;position:fixed;left:50%;top:20%;transform:translateX(-50%);z-index:75;width:min(88vw,500px);padding:15px;text-align:center;background:linear-gradient(135deg,rgba(29,12,42,.96),rgba(7,24,28,.96));border:1px solid #d59cff88;border-radius:16px;box-shadow:0 14px 40px #000b}
+#mythicToast.show{display:block}.tier{font-size:10px;opacity:.75;letter-spacing:.12em}.mythicName{font-size:22px;font-weight:900;margin:5px 0}.mythicDesc{font-size:11px}
+#perf{position:fixed;left:8px;bottom:8px;z-index:18;padding:4px 6px;font-size:8px;opacity:.65}
+
+.panelClose{
+ position:sticky;top:0;float:right;z-index:2;
+ width:36px;height:36px;border-radius:10px;border:1px solid #ffffff20;
+ background:#1a2633;color:#fff;font-size:18px
+}
+.enemyNameText{font-size:9px;font-weight:800}
+
+#aiNotice{display:none;position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:80;width:min(88vw,500px);padding:14px;text-align:center;
+background:linear-gradient(135deg,rgba(17,30,47,.97),rgba(27,15,43,.97));border:1px solid #8fc7ff66;border-radius:16px;box-shadow:0 14px 40px #000a}
+#aiNotice.show{display:block}
+#aiNotice .small{font-size:10px;opacity:.78;letter-spacing:.1em}
+#aiNotice .big{font-size:22px;font-weight:900;margin:5px 0}
+#aiEffects{position:fixed;left:50%;top:100px;transform:translateX(-50%);z-index:21;padding:5px 8px;font-size:9px;max-width:68vw;text-align:center}
+
+#miniWrap{position:fixed;right:58px;top:max(10px,env(safe-area-inset-top));z-index:24;width:118px;height:118px;padding:4px}
+#minimap{width:108px;height:108px;border-radius:10px;display:block;image-rendering:pixelated}
+#mapOverlay{display:none;position:fixed;inset:0;z-index:90;background:rgba(3,7,12,.88);align-items:center;justify-content:center}
+#mapOverlay.open{display:flex}
+#mapCard{width:min(92vw,700px);height:min(80vh,700px);padding:12px;position:relative}
+#worldMap{width:100%;height:calc(100% - 42px);display:block;border-radius:12px;background:#102018}
+#mapClose{position:absolute;right:12px;top:8px;width:38px;height:38px;border:0;border-radius:10px;background:#182533;color:#fff;font-size:18px}
+#mapBtn{position:fixed;right:10px;top:236px;z-index:28;width:42px;height:42px;border:0;border-radius:11px;background:#101923;color:#fff;font-size:19px}
+#codexBtn{position:fixed;right:10px;top:284px;z-index:28;width:42px;height:42px;border:0;border-radius:11px;background:#101923;color:#fff;font-size:18px}
+#codex{display:none;position:fixed;left:50%;top:8%;transform:translateX(-50%);z-index:70;width:min(92vw,600px);max-height:80vh;overflow:auto;padding:14px}
+#codex.open{display:block}
+.rarity-common{color:#ddd}.rarity-rare{color:#6fb8ff}.rarity-epic{color:#d487ff}.rarity-mythic{color:#ffd36b}
+
+#factionChip{position:fixed;left:50%;top:128px;transform:translateX(-50%);z-index:20;padding:5px 8px;font-size:9px;max-width:70vw;text-align:center}
+#powerToast{display:none;position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:82;width:min(88vw,520px);padding:15px;text-align:center;
+background:linear-gradient(135deg,rgba(32,14,44,.97),rgba(15,32,48,.97));border:1px solid #ffd86b77;border-radius:16px;box-shadow:0 14px 40px #000b}
+#powerToast.show{display:block}.powerTier{font-size:10px;opacity:.8;letter-spacing:.13em}.powerName{font-size:22px;font-weight:900;margin:6px 0}
+#interiorBanner{display:none;position:fixed;left:50%;top:24%;transform:translateX(-50%);z-index:38;padding:10px 16px;font-size:18px;font-weight:900}
+
+#miniWrap{
+ position:fixed;right:72px;top:max(10px,env(safe-area-inset-top));z-index:24;
+ width:92px;height:92px;padding:4px;border-radius:50%;overflow:hidden
+}
+#minimap{width:84px;height:84px;border-radius:50%;display:block;image-rendering:pixelated}
+#combatRangeLabel{
+ position:fixed;left:50%;bottom:245px;transform:translateX(-50%);
+ z-index:22;padding:5px 8px;font-size:9px;text-align:center
+}
+#battleLog{
+ position:fixed;left:50%;bottom:72px;transform:translateX(-50%);z-index:23;
+ width:min(58vw,420px);max-height:86px;overflow:hidden;padding:7px 9px;font-size:9px;line-height:1.35
+}
+#battleLog div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#questChip{
+ position:fixed;left:50%;top:156px;transform:translateX(-50%);z-index:21;
+ padding:5px 8px;font-size:9px;max-width:68vw;text-align:center
+}
+#rightMenu{
+ position:fixed;right:10px;top:92px;z-index:29;display:flex;flex-direction:column;gap:7px
+}
+#rightMenu button{
+ width:46px;height:46px;border:1px solid #ffffff20;border-radius:12px;
+ background:#101923;color:#fff;font-size:17px
+}
+.enemyThreat-weak{color:#87ff87}
+.enemyThreat-normal{color:#fff}
+.enemyThreat-elite{color:#6fb8ff}
+.enemyThreat-unique{color:#d487ff}
+.enemyThreat-boss{color:#ff6969}
+.enemyThreat-mythic{color:#ffd36b}
+</style>
+</head>
+<body>
+<div id="titleScreen"><div id="titleCard" class="panel"><h1>勇者の冒険</h1><p>REAL v27.1 UI & COMBAT RANGE<br>高精細ピクセルアート風・巨大ワールド・AI職業・神話級ボス<br><br><b>製作者：恋乃奏・詩葉</b></p><button id="startBtn">冒険を始める</button></div></div>
+
+<canvas id="game"></canvas>
+<div id="hud" class="panel"></div>
+<div id="objective" class="panel">目的：世界を探索する</div>
+<div id="aiChip" class="panel">🤖 AI WORLD MASTER</div>
+<div id="eventChip" class="panel">🌤️ 晴れ / 昼</div><div id="aiEffects" class="panel">AI効果：なし</div><div id="factionChip" class="panel">⚔️ 世界情勢：均衡</div><div id="powerToast"><div class="powerTier"></div><div class="powerName"></div><div class="desc"></div></div><div id="interiorBanner" class="panel"></div><div id="aiNotice"><div class="small"></div><div class="big"></div><div class="desc"></div></div>
+<div id="message" class="panel"></div>
+<div id="bossHUD" class="panel"><div id="bossName"></div><div id="bossBar"><div id="bossFill"></div></div></div>
+<div id="zone" class="panel"></div>
+<div id="mythicToast"><div class="tier"></div><div class="mythicName"></div><div class="mythicDesc"></div></div>
+<div id="perf" class="panel">FPS --</div><div id="combatRangeLabel" class="panel">攻撃範囲：片手剣</div><div id="battleLog" class="panel"></div><div id="questChip" class="panel">📜 クエスト</div>
+<div id="miniWrap" class="panel"><canvas id="minimap" width="216" height="216"></canvas></div>
+<div id="mapOverlay"><div id="mapCard" class="panel"><button id="mapClose">✕</button><h3>🗺️ WORLD MAP</h3><canvas id="worldMap" width="700" height="620"></canvas></div></div>
+<div id="codex" class="panel"></div>
+
+<button id="menuBtn">☰</button>
+<button id="diagBtn">🛠️</button>
+<button id="aiBtn">🤖</button><button id="mapBtn">🗺️</button><button id="codexBtn">📖</button>
+<div id="gameMenu" class="panel"></div>
+<div id="diag" class="panel"></div>
+<div id="aiPanel" class="panel"></div>
+
+<div id="stick"><div id="knob"></div></div>
+<div id="actions">
+ <button class="action" id="attackBtn"><b>⚔️</b>攻撃</button>
+ <button class="action" id="skillBtn"><b>🔥</b>技</button>
+ <button class="action" id="dodgeBtn"><b>💨</b>回避</button>
+ <button class="action" id="guardBtn"><b>🛡️</b>防御</button>
+ <button class="action" id="interactBtn"><b>💬</b>調べる</button>
+ <button class="action" id="specialBtn"><b>⚡</b>必殺</button>
+</div>
+
+<script>
+(()=>{'use strict';
+
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d',{alpha:false});
+const hud=document.getElementById('hud'),objective=document.getElementById('objective'),aiChip=document.getElementById('aiChip'),eventChip=document.getElementById('eventChip'),messageEl=document.getElementById('message');
+const menu=document.getElementById('gameMenu'),diag=document.getElementById('diag'),aiPanel=document.getElementById('aiPanel'),bossHUD=document.getElementById('bossHUD'),bossName=document.getElementById('bossName'),bossFill=document.getElementById('bossFill');
+const zoneEl=document.getElementById('zone'),perf=document.getElementById('perf');
+
+const SYS={engine:true,world:true,player:true,controls:true,enemies:true,combat:true,ai:true,save:true,respawn:true,mythic:true,towns:true,dungeons:true,skillEvolution:true,factions:true,statusEffects:true,companions:true};
+function renderDiag(){
+ diag.innerHTML='<button class="panelClose" onclick="document.getElementById(\'diag\').classList.remove(\'open\')">✕</button><h3>🛠️ SYSTEM DIAGNOSTIC</h3>'+
+ Object.entries(SYS).map(([k,v])=>`<div class="row">${v?'✅':'❌'} ${k}</div>`).join('');
+}
+const BATTLE_LOG=[];
+function addLog(t){
+ BATTLE_LOG.unshift(t);BATTLE_LOG.splice(6);
+ const el=document.getElementById('battleLog');
+ if(el)el.innerHTML=BATTLE_LOG.map(x=>`<div>${x}</div>`).join('');
+}
+function msg(t){
+ messageEl.textContent=t;messageEl.classList.add('show');
+ addLog(t);
+ clearTimeout(msg._t);msg._t=setTimeout(()=>messageEl.classList.remove('show'),1800)
+}
+function mythicToast(tier,name,desc){const b=document.getElementById('mythicToast');b.querySelector('.tier').textContent=tier;b.querySelector('.mythicName').textContent=name;b.querySelector('.mythicDesc').textContent=desc;b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2400)}
+
+let dpr=1;
+function resize(){dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.floor(innerWidth*dpr);canvas.height=Math.floor(innerHeight*dpr);canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px'}
+resize();addEventListener('resize',resize);
+
+const TILE=32,CHUNK=20;
+const state={lv:1,xp:0,hp:240,maxHp:240,mp:120,maxMp:120,st:120,maxSt:120,gold:300,atk:30,burst:0,guard:false,dodge:0,kills:0,bossKills:0};
+const player={x:0,y:0,dir:2,anim:0,attackAnim:0,dodgeAnim:0};
+const profile={attacks:0,skills:0,dodges:0,guards:0,damageTaken:0};
+const inventory=[{id:'potion',name:'回復薬',count:5},{id:'ore',name:'鉄鉱石',count:0},{id:'crystal',name:'星晶石',count:0},{id:'dragon',name:'竜鱗',count:0}];
+const weapons=[{id:'sword',name:'片手剣',atk:30},{id:'greatsword',name:'大剣',atk:42},{id:'spear',name:'槍',atk:35},{id:'staff',name:'魔杖',atk:26}];
+let weapon='sword';
+
+const BIOMES=[
+ {id:'plains',name:'緑風平原',ground:'#4f8c4a',path:'#8f7d56',tree:'#2b6934'},
+ {id:'forest',name:'古代森林',ground:'#315f36',path:'#6e6642',tree:'#174b27'},
+ {id:'snow',name:'白銀雪原',ground:'#c6dce0',path:'#aeb9bd',tree:'#6b8d86'},
+ {id:'desert',name:'黄砂砂漠',ground:'#c6a85d',path:'#9d7c46',tree:'#9f7f3f'},
+ {id:'volcano',name:'火山荒野',ground:'#6d473c',path:'#49302d',tree:'#3a322f'},
+ {id:'swamp',name:'毒霧湿地',ground:'#486144',path:'#3a4a36',tree:'#263d2d'}
+];
+function hash(x,y){let n=(x*374761393+y*668265263)>>>0;n=(n^(n>>13))*1274126177>>>0;return ((n^(n>>16))>>>0)/4294967295}
+function biomeAt(x,y){const cx=Math.floor(x/900),cy=Math.floor(y/900),v=Math.abs((cx*17+cy*31)%BIOMES.length);return BIOMES[v]}
+function heightNoise(x,y){return hash(Math.floor(x/160),Math.floor(y/160))}
+const chunks=new Map();
+function key(cx,cy){return cx+','+cy}
+function ensureChunk(cx,cy){
+ const k=key(cx,cy);if(chunks.has(k))return chunks.get(k);
+ const items=[],npcs=[],chests=[];
+ for(let i=0;i<28;i++){
+  const x=(cx*CHUNK+hash(cx*99+i,cy*31+i)*CHUNK)*TILE;
+  const y=(cy*CHUNK+hash(cy*71+i,cx*17+i)*CHUNK)*TILE;
+  const r=hash(cx*11+i,cy*13-i);
+  items.push({x,y,type:r<.55?'tree':r<.82?'rock':'flower'});
+ }
+ if(hash(cx,cy)>.76)chests.push({x:(cx*CHUNK+10)*TILE,y:(cy*CHUNK+10)*TILE,opened:false});
+ if(hash(cx+7,cy-5)>.83)npcs.push({name:'旅人',x:(cx*CHUNK+8)*TILE,y:(cy*CHUNK+7)*TILE});
+ const c={cx,cy,items,npcs,chests};chunks.set(k,c);return c;
+}
+function activeChunks(){const cx=Math.floor(player.x/(CHUNK*TILE)),cy=Math.floor(player.y/(CHUNK*TILE)),arr=[];for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)arr.push(ensureChunk(cx+dx,cy+dy));return arr}
+
+const enemies=[];
+const RESPAWN_TARGET=28;
+function spawnEnemy(type='wolf',around=true){
+ const defs={
+  wolf:{name:'影狼',hp:110,atk:13,speed:58,color:'#58616b',size:18},
+  orc:{name:'岩肌オーク',hp:190,atk:20,speed:44,color:'#8b4d35',size:22},
+  mage:{name:'深森の魔術師',hp:140,atk:18,speed:48,color:'#6b3b8c',size:20},
+  demon:{name:'下級悪魔',hp:230,atk:24,speed:52,color:'#7b2437',size:22}
+ };
+ const d=defs[type]||defs.wolf,ang=Math.random()*Math.PI*2,r=around?420+Math.random()*500:700;
+ enemies.push({type,name:d.name,x:player.x+Math.cos(ang)*r,y:player.y+Math.sin(ang)*r,hp:d.hp,maxHp:d.hp,atk:d.atk,speed:d.speed,color:d.color,size:d.size,alive:true,cd:0,boss:false,mythic:false,respawnAt:0});
+}
+function maintainEnemies(){
+ const alive=enemies.filter(e=>e.alive&&!e.mythic).length;
+ for(let i=alive;i<RESPAWN_TARGET;i++){const r=Math.random();spawnEnemy(r<.55?'wolf':r<.78?'orc':r<.93?'mage':'demon')}
+}
+for(let i=0;i<RESPAWN_TARGET;i++)spawnEnemy(i%5===0?'orc':i%7===0?'mage':'wolf');
+
+const PANTHEON=[
+ {id:'zeus',name:'雷霆王ゼウス',tradition:'ギリシャ神話',hp:1700,atk:40,speed:50,color:'#d5d5ff',skill:{id:'thunder_king',name:'雷霆の王権',desc:'必殺時に追加雷撃'}},
+ {id:'odin',name:'隻眼王オーディン',tradition:'北欧神話',hp:1850,atk:43,speed:48,color:'#727789',skill:{id:'rune_eye',name:'叡智の魔眼',desc:'クリティカル率上昇'}},
+ {id:'susanoo',name:'嵐神スサノオ',tradition:'日本神話',hp:1900,atk:44,speed:54,color:'#4f85ad',skill:{id:'storm_blade',name:'八荒嵐刃',desc:'剣攻撃に風追撃'}},
+ {id:'ra',name:'太陽神ラー',tradition:'エジプト神話',hp:1750,atk:42,speed:49,color:'#f0b93a',skill:{id:'sun_core',name:'太陽核',desc:'昼間HP自然回復'}},
+ {id:'tiamat',name:'原初竜ティアマト',tradition:'メソポタミア神話',hp:2700,atk:54,speed:42,color:'#743f8f',skill:{id:'dragon_origin',name:'原初竜権',desc:'最大HPと対ボス火力上昇'}},
+ {id:'beelzebub',name:'蝿王ベルゼブブ',tradition:'悪魔伝承',hp:2150,atk:50,speed:52,color:'#536b2b',skill:{id:'devour',name:'貪喰王',desc:'敵撃破時HP/MP回復'}},
+ {id:'belial',name:'無法王ベリアル',tradition:'悪魔伝承',hp:2250,atk:52,speed:50,color:'#9a3121',skill:{id:'lawless_flame',name:'無法炎界',desc:'瀕死時攻撃力上昇'}}
+];
+const MYTHIC={defeated:[],skills:[],active:null,lastSpawn:0};
+function hasSkill(id){return MYTHIC.skills.some(s=>s.id===id)}
+function grantSkill(s,src){if(hasSkill(s.id))return;MYTHIC.skills.push({...s,source:src});mythicToast('MYTHIC SKILL',s.name,s.desc)}
+function spawnMythic(){
+ if(MYTHIC.active?.alive)return;
+ const pool=PANTHEON.filter(p=>!MYTHIC.defeated.includes(p.id));if(!pool.length)return;
+ const d=pool[Math.floor(Math.random()*pool.length)],a=Math.random()*Math.PI*2,r=650;
+ const e={...d,x:player.x+Math.cos(a)*r,y:player.y+Math.sin(a)*r,maxHp:d.hp,alive:true,cd:0,boss:true,mythic:true,size:38,phase:1};
+ enemies.push(e);MYTHIC.active=e;MYTHIC.lastSpawn=performance.now();mythicToast(d.tradition,d.name,'神話級存在が顕現した');
+}
+
+const AI={job:'冒険者',mood:'balanced',difficulty:1,event:'平穏',skills:[],quests:[],last:0};
+
+AI.previousJob='冒険者';
+AI.history=[];
+AI.modifiers={move:1,skill:1,guard:1,crit:0,heal:1};
+
+function aiNotice(kind,name,desc){
+ const b=document.getElementById('aiNotice');
+ b.querySelector('.small').textContent=kind;
+ b.querySelector('.big').textContent=name;
+ b.querySelector('.desc').textContent=desc;
+ b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2500);
+}
+function recalcAIModifiers(){
+ AI.modifiers={move:1,skill:1,guard:1,crit:0,heal:1};
+ if(AI.job==='影走士')AI.modifiers.move*=1.12;
+ if(AI.job==='境界守護者')AI.modifiers.guard*=.82;
+ if(AI.job==='魔剣士')AI.modifiers.skill*=1.15;
+ if(AI.job==='討滅士')AI.modifiers.crit+=.08;
+ if(AI.has('afterimage'))AI.modifiers.move*=1.10;
+ if(AI.has('ironwall'))AI.modifiers.guard*=.80;
+ if(AI.has('arcane'))AI.modifiers.skill*=1.12;
+}
+function aiEffectText(){
+ const parts=[];
+ if(AI.modifiers.move>1.001)parts.push(`移動+${Math.round((AI.modifiers.move-1)*100)}%`);
+ if(AI.modifiers.skill>1.001)parts.push(`技威力+${Math.round((AI.modifiers.skill-1)*100)}%`);
+ if(AI.modifiers.guard<.999)parts.push(`被ダメ-${Math.round((1-AI.modifiers.guard)*100)}%`);
+ if(AI.modifiers.crit>0)parts.push(`会心+${Math.round(AI.modifiers.crit*100)}%`);
+ return parts.length?parts.join(' / '):'なし';
+}
+function logAI(t){
+ AI.history.unshift(`${new Date().toLocaleTimeString()} ${t}`);
+ AI.history=AI.history.slice(0,20);
+}
+
+AI.has=id=>AI.skills.some(s=>s.id===id);
+AI.analyze=()=>{
+ const oldJob=AI.job;
+ if(profile.dodges>profile.guards+4)AI.job='影走士';
+ else if(profile.guards>=10)AI.job='境界守護者';
+ else if(profile.skills>=12)AI.job='魔剣士';
+ else if(state.bossKills>=1)AI.job='討滅士';
+ else AI.job='冒険者';
+
+ AI.mood=state.hp/state.maxHp<.35?'support':state.kills>15?'challenge':'balanced';
+ AI.difficulty=AI.mood==='challenge'?1.12:AI.mood==='support'?.9:1;
+
+ if(AI.job!==oldJob){
+   const desc={
+     '影走士':'移動速度 +12%',
+     '境界守護者':'被ダメージ軽減',
+     '魔剣士':'スキル威力 +15%',
+     '討滅士':'会心率 +8%',
+     '冒険者':'標準能力'
+   }[AI.job];
+   aiNotice('AI JOB CHANGE',AI.job,desc);
+   logAI(`職業変更 ${oldJob} → ${AI.job}`);
+ }
+
+ const defs=[
+  {id:'afterimage',name:'残影の境地',desc:'回避・移動速度上昇',ok:profile.dodges>=10},
+  {id:'ironwall',name:'鉄壁反射',desc:'防御時の被ダメージ軽減',ok:profile.guards>=10},
+  {id:'arcane',name:'魔力循環',desc:'スキル威力上昇＋消費MP低下',ok:profile.skills>=15},
+  {id:'hunter',name:'強敵狩り',desc:'強敵への会心率上昇',ok:state.bossKills>=1}
+ ];
+ for(const s of defs){
+   if(s.ok&&!AI.has(s.id)){
+     AI.skills.push(s);
+     aiNotice('UNIQUE SKILL AWAKENED',s.name,s.desc);
+     logAI(`ユニークスキル獲得 ${s.name}`);
+   }
+ }
+
+ if(!AI.quests.some(q=>!q.done)){
+   const q=state.kills<12
+    ?{name:'討伐訓練',type:'kills',start:state.kills,goal:6,reward:220,done:false}
+    :{name:'強敵討伐',type:'bossKills',start:state.bossKills,goal:1,reward:450,done:false};
+   AI.quests.push(q);logAI(`AIクエスト生成 ${q.name}`);
+ }
+ for(const q of AI.quests){
+   if(q.done)continue;
+   q.progress=(state[q.type]||0)-q.start;
+   if(q.progress>=q.goal){q.done=true;state.gold+=q.reward;msg('✅ AIクエスト達成');logAI(`クエスト達成 ${q.name}`)}
+ }
+
+ if(Math.random()<.22)AI.event=['平穏','紅月','黄金探索期','魔物活性化'][Math.floor(Math.random()*4)];
+ if(state.lv>=3&&state.kills>=8&&performance.now()-MYTHIC.lastSpawn>50000&&Math.random()<.18)spawnMythic();
+ recalcAIModifiers();
+};
+
+let joy={x:0,y:0},touchAim={x:1,y:0};
+const stick=document.getElementById('stick'),knob=document.getElementById('knob');let sid=null;
+const updStick=e=>{const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy,max=r.width*.31,d=Math.hypot(dx,dy);if(d>max){dx=dx/d*max;dy=dy/d*max}joy.x=dx/max;joy.y=dy/max;knob.style.transform=`translate(${dx}px,${dy}px)`};
+stick.onpointerdown=e=>{sid=e.pointerId;stick.setPointerCapture(sid);updStick(e)};stick.onpointermove=e=>{if(e.pointerId===sid)updStick(e)};const end=e=>{if(e.pointerId===sid){sid=null;joy.x=joy.y=0;knob.style.transform='translate(0,0)'}};stick.onpointerup=end;stick.onpointercancel=end;
+
+function nearest(r=120){let b=null,d0=1e9;for(const e of enemies){if(!e.alive)continue;const d=Math.hypot(player.x-e.x,player.y-e.y);if(d<r&&d<d0){d0=d;b=e}}return b}
+
+function weaponRange(){
+ if(weapon==='greatsword')return {type:'circle',r:145,label:'大剣：広範囲'};
+ if(weapon==='spear')return {type:'line',r:190,w:42,label:'槍：直線'};
+ if(weapon==='staff')return {type:'circle',r:220,label:'魔杖：遠距離'};
+ return {type:'circle',r:105,label:'片手剣：近距離'};
+}
+function threatClass(e){
+ if(e.mythic)return 'mythic';
+ if(e.boss)return 'boss';
+ if((e.maxHp||0)>=320)return 'unique';
+ if((e.maxHp||0)>=200)return 'elite';
+ if((e.maxHp||0)<120)return 'weak';
+ return 'normal';
+}
+function threatColor(e){
+ const t=threatClass(e);
+ return t==='weak'?'#87ff87':t==='elite'?'#6fb8ff':t==='unique'?'#d487ff':t==='boss'?'#ff6969':t==='mythic'?'#ffd36b':'#ffffff';
+}
+function drawCombatRange(camX,camY){
+ const p=worldToScreen(player.x,player.y,camX,camY),r=weaponRange();
+ ctx.save();
+ ctx.globalAlpha=.22;
+ ctx.fillStyle=weapon==='staff'?'#ffd34a':weapon==='spear'?'#5be7ff':'#76b7ff';
+ ctx.strokeStyle=weapon==='staff'?'#ffd34a':weapon==='spear'?'#5be7ff':'#76b7ff';
+ ctx.lineWidth=2;
+ ctx.setLineDash([8,6]);
+ if(r.type==='circle'){
+   ctx.beginPath();ctx.arc(p.x,p.y,r.r,0,Math.PI*2);ctx.fill();ctx.stroke();
+ }else{
+   const len=r.r,w=r.w;
+   ctx.fillRect(p.x-w/2,p.y-len,w,len);ctx.strokeRect(p.x-w/2,p.y-len,w,len);
+ }
+ ctx.restore();
+ document.getElementById('combatRangeLabel').textContent=`攻撃範囲：${r.label}`;
+}
+
+
+const FLOATING=[];
+function floatDamage(x,y,value,kind='damage'){
+ FLOATING.push({x,y,value:String(value),kind,life:.8,max:.8});
+}
+function drawFloating(camX,camY,dt){
+ for(let i=FLOATING.length-1;i>=0;i--){
+   const f=FLOATING[i];f.life-=dt;f.y-=25*dt;
+   const s=worldToScreen(f.x,f.y,camX,camY);
+   ctx.globalAlpha=Math.max(0,f.life/f.max);
+   ctx.font='bold 12px -apple-system,BlinkMacSystemFont,sans-serif';
+   ctx.textAlign='center';
+   ctx.fillStyle=f.kind==='crit'?'#ffd166':'#fff';
+   ctx.strokeStyle='rgba(0,0,0,.75)';ctx.lineWidth=3;
+   ctx.strokeText(f.value,s.x,s.y);ctx.fillText(f.value,s.x,s.y);
+   ctx.globalAlpha=1;
+   if(f.life<=0)FLOATING.splice(i,1);
+ }
+}
+
+function killEnemy(e){
+ discoverEnemy(e);maybeGearDrop(e);
+ const fk=factionFor(e);if(fk)FACTIONS[fk].rep-=10;
+ e.alive=false;state.kills++;state.xp+=e.mythic?240:e.boss?160:28;state.gold+=e.mythic?600:e.boss?380:35;if(e.boss)state.bossKills++;
+ if(hasSkill('devour')){state.hp=Math.min(state.maxHp,state.hp+16);state.mp=Math.min(state.maxMp,state.mp+8)}
+ if(e.mythic){MYTHIC.defeated.push(e.id);grantSkill(e.skill,e.name);MYTHIC.active=null}
+ if(state.xp>=state.lv*100){state.xp-=state.lv*100;state.lv++;state.maxHp+=18;state.hp=state.maxHp;msg('⭐ LEVEL UP')}
+ setTimeout(()=>{if(!e.mythic){e.x=player.x+(Math.random()>.5?1:-1)*(480+Math.random()*500);e.y=player.y+(Math.random()>.5?1:-1)*(480+Math.random()*500);e.hp=e.maxHp;e.alive=true}},5000+Math.random()*8000);
+}
+function damage(e,d){e.hp-=d;floatDamage(e.x,e.y-26,d,d>=80?'crit':'damage');if(e.hp<=0)killEnemy(e)}
+function attack(){profile.attacks++;player.attackAnim=.18;const e=nearest(weaponRange().r);if(!e)return msg('⚔️ 空振り');let d=state.atk+Math.floor(Math.random()*10);if(hasEvolved('world_authority')&&e.boss)d=Math.floor(d*1.25);if(Math.random()<AI.modifiers.crit+gearCrit()){d=Math.floor(d*1.75);floatDamage(e.x,e.y-38,'CRIT','crit')}if(hasSkill('rune_eye')&&Math.random()<.16)d=Math.floor(d*1.8);if(hasSkill('lawless_flame')&&state.hp<state.maxHp*.3)d=Math.floor(d*1.45);if(e.boss&&hasSkill('dragon_origin'))d=Math.floor(d*1.22);damage(e,d);state.burst=Math.min(100,state.burst+10);touchAim.x=e.x-player.x;touchAim.y=e.y-player.y}
+function skill(){const c=AI.has('arcane')?14:18;if(state.mp<c)return;profile.skills++;state.mp-=c;let h=0;for(const e of enemies)if(e.alive&&Math.hypot(player.x-e.x,player.y-e.y)<170){damage(e,Math.floor((60+state.lv*4)*AI.modifiers.skill));h++}msg('🔥 '+h+'体命中')}
+function dodge(){if(state.st<20)return;profile.dodges++;state.st-=20;state.dodge=.42;
+ if(hasEvolved('space_step')){const m=Math.hypot(joy.x,joy.y)||1;player.x+=joy.x/m*90;player.y+=joy.y/m*90;msg('🌀 空間歩法')}
+}
+function special(){if(state.burst<100)return;state.burst=0;for(const e of enemies)if(e.alive&&Math.hypot(player.x-e.x,player.y-e.y)<220)damage(e,210+state.lv*10);msg('⚡ 神速奥義')}
+document.getElementById('attackBtn').onclick=attack;document.getElementById('skillBtn').onclick=skill;document.getElementById('dodgeBtn').onclick=dodge;document.getElementById('guardBtn').onclick=()=>{profile.guards++;state.guard=!state.guard;msg(state.guard?'🛡️ 防御ON':'🛡️ 防御OFF')};document.getElementById('specialBtn').onclick=special;
+
+document.getElementById('interactBtn').onclick=()=>{
+ if(INTERIOR.active){leaveInterior();return}
+ const nearPoi=nearestPOI();
+ if(nearPoi.poi&&nearPoi.dist<90){enterInterior(nearPoi.poi.type,nearPoi.poi);return}
+
+ const cs=activeChunks();
+ for(const c of cs){
+  const chest=c.chests.find(ch=>!ch.opened&&Math.hypot(player.x-ch.x,player.y-ch.y)<65);
+  if(chest){chest.opened=true;state.gold+=150;inventory[2].count++;return msg('🎁 宝箱：150G + 星晶石')}
+  const n=c.npcs.find(n=>Math.hypot(player.x-n.x,player.y-n.y)<70);
+  if(n)return msg('💬 '+n.name+'：この先には強い魔物がいる');
+ }
+ if(Math.random()<.55){inventory[1].count++;msg('⛏️ 鉄鉱石')}else{inventory[2].count++;msg('💎 星晶石')}
+};
+
+let menuTab='status';
+function renderMenu(){
+ const q=AI.quests.find(q=>!q.done);let body='';
+ if(menuTab==='status')body=`<div class="row">Lv.${state.lv}<br>HP ${Math.ceil(state.hp)}/${state.maxHp}<br>MP ${Math.ceil(state.mp)}/${state.maxMp}<br>ATK ${state.atk}<br>防具 ${equipment.armor?.name||'なし'}<br>装飾 ${equipment.accessory?.name||'なし'}<br>所持金 ${state.gold}G<br>撃破 ${state.kills}</div>`;
+ if(menuTab==='weapon')body=weapons.map(w=>`<div class="row">${weapon===w.id?'✅':'⚔️'} ${w.name} ATK ${w.atk}<button class="menuBtn2" onclick="window.equipW('${w.id}')">装備</button></div>`).join('');
+ if(menuTab==='items')body=inventory.map(i=>`<div class="row">${i.name} ×${i.count}${i.id==='potion'?` <button class="menuBtn2" onclick="window.usePotion()">使う</button>`:''}</div>`).join('');
+ if(menuTab==='job')body=`<div class="row">AI職業：${AI.job}<br>状態：${AI.mood}<br>イベント：${AI.event}<br><br><b>反映中：</b>${aiEffectText()}</div>`;
+ if(menuTab==='quest')body=`<div class="row quest">${q?`${q.name} ${(q.progress||0)}/${q.goal}<br>報酬 ${q.reward}G`:'なし'}</div>`;
+ if(menuTab==='evolution')body=`<div class="row"><b>スキル進化</b><br>${SKILL_TREE.evolved.length?SKILL_TREE.evolved.map(s=>`✨ ${s.name} [${s.tier}] - ${s.desc}`).join('<br>'):'まだ進化なし'}</div><div class="row"><b>権能</b><br>${SKILL_TREE.authority.length?SKILL_TREE.authority.map(s=>`👑 ${s.name} - ${s.desc}`).join('<br>'):'未覚醒'}</div>`;
+ if(menuTab==='world')body=`<div class="row"><b>世界情勢</b><br>優勢：${factionSummary()}<br>${WORLD_STATE.wars.length?WORLD_STATE.wars.slice(0,6).join('<br>'):'大きな戦争なし'}</div><div class="row"><b>仲間</b><br>${COMPANION.active==='spirit'?'星霊ルミナ':'なし'}</div>`;
+ if(menuTab==='skills')body=(AI.skills.length?AI.skills.map(s=>`<div class="row skill">🌟 ${s.name}<br>${s.desc}</div>`).join(''):'<div class="row">未獲得</div>')+(MYTHIC.skills.length?MYTHIC.skills.map(s=>`<div class="row skill">🌌 ${s.name}<br>${s.desc}</div>`).join(''):'');
+ menu.innerHTML=`<button class="panelClose" onclick="document.getElementById('gameMenu').classList.remove('open')">✕</button><h3>☰ GAME MENU</h3><div id="menuTabs">${[['status','ステータス'],['weapon','武器'],['items','アイテム'],['job','職業'],['quest','クエスト'],['skills','スキル'],['evolution','進化'],['world','世界']].map(([id,n])=>`<button class="menuTab" onclick="window.tab('${id}')">${n}</button>`).join('')}</div>${body}<button class="menuBtn2" onclick="document.getElementById('gameMenu').classList.remove('open')">閉じる</button>`;
+}
+window.tab=x=>{menuTab=x;renderMenu()};window.equipW=id=>{weapon=id;state.atk=weapons.find(w=>w.id===id).atk;renderMenu()};window.usePotion=()=>{if(inventory[0].count<=0)return msg('回復薬なし');inventory[0].count--;state.hp=Math.min(state.maxHp,state.hp+85);renderMenu()};
+function renderAI(){
+ const q=AI.quests.find(q=>!q.done);
+ aiPanel.innerHTML=`<button class="panelClose" onclick="document.getElementById('aiPanel').classList.remove('open')">✕</button>
+ <h3>🤖 AI WORLD MASTER</h3>
+ <div class="row"><b>現在の職業：</b>${AI.job}<br><b>状態：</b>${AI.mood}<br><b>難易度：</b>${AI.difficulty.toFixed(2)}<br><b>イベント：</b>${AI.event}</div>
+ <div class="row"><b>実際に反映中の効果</b><br>${aiEffectText()}</div>
+ <div class="row"><b>ユニークスキル</b><br>${AI.skills.length?AI.skills.map(s=>`🌟 ${s.name}：${s.desc}`).join('<br>'):'未獲得'}</div>
+ <div class="row quest"><b>AIクエスト</b><br>${q?`${q.name} ${(q.progress||0)}/${q.goal}`:'なし'}</div>
+ <div class="row"><b>AI履歴</b><br>${AI.history.length?AI.history.slice(0,10).join('<br>'):'まだ履歴なし'}</div>
+ <div class="row">神話級撃破：${MYTHIC.defeated.length}<br>神話スキル：${MYTHIC.skills.length}<br>進化スキル：${SKILL_TREE.evolved.length}<br>権能：${SKILL_TREE.authority.length}</div>
+ <button class="menuBtn2" onclick="document.getElementById('aiPanel').classList.remove('open')">閉じる</button>`;
+}
+document.getElementById('menuBtn').onclick=()=>{
+ aiPanel.classList.remove('open');diag.classList.remove('open');
+ menu.classList.toggle('open');renderMenu();
+};
+document.getElementById('diagBtn').onclick=()=>{
+ menu.classList.remove('open');aiPanel.classList.remove('open');
+ diag.classList.toggle('open');renderDiag();
+};
+
+document.getElementById('mapBtn').onclick=()=>{document.getElementById('mapOverlay').classList.add('open');drawWorldMap()};
+document.getElementById('mapClose').onclick=()=>document.getElementById('mapOverlay').classList.remove('open');
+document.getElementById('miniWrap').onclick=()=>{document.getElementById('mapOverlay').classList.add('open');drawWorldMap()};
+document.getElementById('codexBtn').onclick=()=>{codex.classList.toggle('open');renderCodex()};
+document.getElementById('aiBtn').onclick=()=>{
+ menu.classList.remove('open');diag.classList.remove('open');
+ aiPanel.classList.toggle('open');renderAI();
+};
+
+
+const CODEX={enemies:new Set(),mythic:new Set(),items:new Set(),zones:new Set()};
+const FACTIONS={
+ olympus:{name:'オリンポス',rep:0},
+ norse:{name:'北欧神群',rep:0},
+ japan:{name:'日本神群',rep:0},
+ egypt:{name:'エジプト神群',rep:0},
+ dragon:{name:'竜族',rep:0},
+ demon:{name:'悪魔勢力',rep:0}
+};
+const GEAR=[
+ {id:'iron_mail',name:'鉄の鎧',slot:'armor',rarity:'common',def:6},
+ {id:'wind_ring',name:'疾風の指輪',slot:'accessory',rarity:'rare',move:.05},
+ {id:'dragon_mail',name:'竜鱗鎧',slot:'armor',rarity:'epic',def:18},
+ {id:'god_charm',name:'神域護符',slot:'accessory',rarity:'mythic',crit:.06}
+];
+const equipment={armor:null,accessory:null};
+function gearDef(){return equipment.armor?.def||0}
+function gearMove(){return 1+(equipment.accessory?.move||0)}
+function gearCrit(){return equipment.accessory?.crit||0}
+function discoverEnemy(e){
+ if(e.mythic){CODEX.mythic.add(e.name)} else CODEX.enemies.add(e.name);
+}
+function factionFor(e){
+ if(!e.mythic)return null;
+ const t=e.tradition||'';
+ if(t.includes('ギリシャ'))return 'olympus';
+ if(t.includes('北欧'))return 'norse';
+ if(t.includes('日本'))return 'japan';
+ if(t.includes('エジプト'))return 'egypt';
+ if(e.id==='tiamat')return 'dragon';
+ if(t.includes('悪魔'))return 'demon';
+ return null;
+}
+function maybeGearDrop(e){
+ let g=null;
+ if(e.mythic&&Math.random()<.55)g=GEAR[Math.random()<.5?2:3];
+ else if(e.boss&&Math.random()<.35)g=GEAR[1];
+ else if(Math.random()<.04)g=GEAR[0];
+ if(g){CODEX.items.add(g.name);equipment[g.slot]=g;msg(`✨ ${g.name} を装備`)}
+}
+function renderCodex(){
+ const sec=(title,arr)=>`<div class="row"><b>${title}</b><br>${arr.length?arr.join('<br>'):'???'}</div>`;
+ codex.innerHTML=`<button class="panelClose" onclick="document.getElementById('codex').classList.remove('open')">✕</button><h3>📖 冒険図鑑</h3>
+ ${sec('モンスター',[...CODEX.enemies])}${sec('神話級',[...CODEX.mythic])}${sec('装備',[...CODEX.items])}${sec('発見地域',[...CODEX.zones])}
+ <div class="row"><b>神話勢力</b><br>${Object.values(FACTIONS).map(f=>`${f.name}: ${f.rep}`).join('<br>')}</div>`;
+}
+
+
+const STATUS={burn:0,poison:0,freeze:0,shock:0};
+const SKILL_TREE={
+ tiers:['通常','固有','ユニーク','神話級','権能'],
+ evolved:[],
+ authority:[]
+};
+const COMPANION={active:null,unlocked:[]};
+const INTERIOR={active:false,type:null,name:'',returnX:0,returnY:0};
+const TOWNS=[
+ {name:'王都アルセリア',x:0,y:0,type:'town'},
+ {name:'雪都ノルヴァ',x:-1800,y:1350,type:'town'},
+ {name:'炎都バルグ',x:2100,y:-1400,type:'town'}
+];
+const DUNGEONS=[
+ {name:'古代樹海迷宮',x:-1200,y:900,type:'dungeon',level:3},
+ {name:'竜骸洞',x:1700,y:1200,type:'dungeon',level:6},
+ {name:'冥府神殿',x:2300,y:-2100,type:'dungeon',level:9}
+];
+const WORLD_STATE={
+ tick:0,
+ day:1,
+ wars:[],
+ lastWar:0,
+ dominant:'均衡'
+};
+
+function powerToast(tier,name,desc){
+ const b=document.getElementById('powerToast');
+ b.querySelector('.powerTier').textContent=tier;
+ b.querySelector('.powerName').textContent=name;
+ b.querySelector('.desc').textContent=desc;
+ b.classList.add('show');setTimeout(()=>b.classList.remove('show'),2600);
+}
+function evolveSkills(){
+ const owned=[...AI.skills,...MYTHIC.skills];
+ if(AI.has('afterimage')&&AI.has('arcane')&&!SKILL_TREE.evolved.some(s=>s.id==='space_step')){
+   const s={id:'space_step',name:'空間歩法',tier:'固有',desc:'回避後に短距離瞬間移動'};
+   SKILL_TREE.evolved.push(s);powerToast('SKILL EVOLUTION',s.name,s.desc);
+ }
+ if(hasSkill('rune_eye')&&AI.has('hunter')&&!SKILL_TREE.evolved.some(s=>s.id==='fate_eye')){
+   const s={id:'fate_eye',name:'運命観測眼',tier:'神話級',desc:'会心率とボス解析能力上昇'};
+   SKILL_TREE.evolved.push(s);powerToast('SKILL FUSION',s.name,s.desc);
+ }
+ if(MYTHIC.skills.length>=3&&!SKILL_TREE.authority.some(s=>s.id==='world_authority')){
+   const s={id:'world_authority',name:'世界干渉',tier:'権能',desc:'神話級ボスへの与ダメージ増加・世界イベント発生率上昇'};
+   SKILL_TREE.authority.push(s);powerToast('AUTHORITY AWAKENED',s.name,s.desc);
+ }
+}
+function hasEvolved(id){return SKILL_TREE.evolved.some(s=>s.id===id)||SKILL_TREE.authority.some(s=>s.id===id)}
+
+function updateStatus(dt){
+ if(STATUS.burn>0){STATUS.burn-=dt;state.hp=Math.max(1,state.hp-3*dt)}
+ if(STATUS.poison>0){STATUS.poison-=dt;state.hp=Math.max(1,state.hp-2*dt)}
+ if(STATUS.freeze>0)STATUS.freeze-=dt;
+ if(STATUS.shock>0)STATUS.shock-=dt;
+}
+function applyStatus(type,dur){
+ STATUS[type]=Math.max(STATUS[type]||0,dur);
+ msg(`⚠️ ${type.toUpperCase()} 状態`);
+}
+
+function enterInterior(kind,obj){
+ INTERIOR.active=true;INTERIOR.type=kind;INTERIOR.name=obj.name;INTERIOR.returnX=player.x;INTERIOR.returnY=player.y;
+ const b=document.getElementById('interiorBanner');b.textContent=obj.name;b.style.display='block';setTimeout(()=>b.style.display='none',1600);
+ player.x=0;player.y=0;
+ msg(kind==='town'?'🏰 街へ入った':'🕳️ ダンジョンへ入った');
+}
+function leaveInterior(){
+ if(!INTERIOR.active)return;
+ player.x=INTERIOR.returnX;player.y=INTERIOR.returnY;
+ INTERIOR.active=false;INTERIOR.type=null;INTERIOR.name='';
+ msg('🚪 外へ出た');
+}
+function nearestPOI(){
+ const all=[...TOWNS,...DUNGEONS];
+ let best=null,d=1e9;
+ for(const p of all){const dd=Math.hypot(player.x-p.x,player.y-p.y);if(dd<d){d=dd;best=p}}
+ return {poi:best,dist:d};
+}
+
+function updateWorldFactions(){
+ WORLD_STATE.tick++;
+ if(WORLD_STATE.tick%6!==0)return;
+ const keys=Object.keys(FACTIONS);
+ const a=keys[Math.floor(Math.random()*keys.length)];
+ let b=keys[Math.floor(Math.random()*keys.length)];
+ if(a===b)b=keys[(keys.indexOf(a)+1)%keys.length];
+ const swing=5+Math.floor(Math.random()*11);
+ FACTIONS[a].rep+=swing;FACTIONS[b].rep-=swing;
+ WORLD_STATE.wars.unshift(`${FACTIONS[a].name} が ${FACTIONS[b].name} を侵攻`);
+ WORLD_STATE.wars=WORLD_STATE.wars.slice(0,10);
+ WORLD_STATE.dominant=keys.sort((x,y)=>FACTIONS[y].rep-FACTIONS[x].rep)[0];
+ msg(`⚔️ 世界情勢変化：${WORLD_STATE.wars[0]}`);
+}
+function factionSummary(){
+ const k=WORLD_STATE.dominant;
+ return k==='均衡'?'均衡':FACTIONS[k]?.name||'均衡';
+}
+
+function unlockCompanion(){
+ if(state.bossKills>=1&&!COMPANION.unlocked.includes('spirit')){
+   COMPANION.unlocked.push('spirit');COMPANION.active='spirit';
+   powerToast('COMPANION', '星霊ルミナ', '一定間隔で近くの敵へ援護攻撃');
+ }
+}
+function companionAttack(){
+ if(COMPANION.active!=='spirit')return;
+ const e=nearest(140);if(e){damage(e,18+state.lv*3)}
+}
+
+const SAVE='yuusha_v27_living_mythic';
+function save(){try{localStorage.setItem(SAVE,JSON.stringify({state,player,profile,inventory,weapon,AI,MYTHIC:{defeated:MYTHIC.defeated,skills:MYTHIC.skills},equipment,FACTIONS,SKILL_TREE,COMPANION,WORLD_STATE,CODEX:{enemies:[...CODEX.enemies],mythic:[...CODEX.mythic],items:[...CODEX.items],zones:[...CODEX.zones]}}))}catch(_){}}function load(){try{const r=localStorage.getItem(SAVE);if(!r)return;const d=JSON.parse(r);Object.assign(state,d.state||{});Object.assign(player,d.player||{});Object.assign(profile,d.profile||{});if(Array.isArray(d.inventory)){inventory.splice(0,inventory.length,...d.inventory)}weapon=d.weapon||'sword';Object.assign(AI,d.AI||{});if(d.MYTHIC){MYTHIC.defeated=d.MYTHIC.defeated||[];MYTHIC.skills=d.MYTHIC.skills||[]}
+ if(d.equipment)Object.assign(equipment,d.equipment);
+ if(d.SKILL_TREE){SKILL_TREE.evolved=d.SKILL_TREE.evolved||[];SKILL_TREE.authority=d.SKILL_TREE.authority||[]}
+ if(d.COMPANION){COMPANION.active=d.COMPANION.active||null;COMPANION.unlocked=d.COMPANION.unlocked||[]}
+ if(d.WORLD_STATE)Object.assign(WORLD_STATE,d.WORLD_STATE);
+ if(d.FACTIONS)for(const k in d.FACTIONS)if(FACTIONS[k])Object.assign(FACTIONS[k],d.FACTIONS[k]);
+ if(d.CODEX){for(const x of d.CODEX.enemies||[])CODEX.enemies.add(x);for(const x of d.CODEX.mythic||[])CODEX.mythic.add(x);for(const x of d.CODEX.items||[])CODEX.items.add(x);for(const x of d.CODEX.zones||[])CODEX.zones.add(x)}
+ }catch(_){}}
+load();recalcAIModifiers();setInterval(save,45000);addEventListener('pagehide',save);
+
+function worldToScreen(x,y,camX,camY){return {x:(x-camX)+innerWidth/2,y:(y-camY)+innerHeight/2}}
+function pixelRect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}
+function drawShadow(x,y,w,h){ctx.fillStyle='rgba(0,0,0,.22)';ctx.beginPath();ctx.ellipse(x,y,w,h,0,0,Math.PI*2);ctx.fill()}
+function drawPlayer(sx,sy){
+ drawShadow(sx,sy+14,15,6);const bob=Math.sin(player.anim)*2,atk=player.attackAnim>0?8:0;
+ pixelRect(sx-8,sy-12+bob,16,18,'#2d6bd1');pixelRect(sx-7,sy-24+bob,14,12,'#e2b783');
+ pixelRect(sx-11,sy+5+bob,7,13,'#26384d');pixelRect(sx+4,sy+5+bob,7,13,'#26384d');
+ pixelRect(sx-13,sy-10+bob,6,14,'#2d6bd1');pixelRect(sx+7,sy-10+bob,6,14,'#2d6bd1');
+ pixelRect(sx+12+atk,sy-10+bob,3,18,'#dfe6eb');
+ pixelRect(sx-4,sy-20+bob,3,2,'#27313b');pixelRect(sx+2,sy-20+bob,3,2,'#27313b');
+}
+function drawEnemy(e,sx,sy){
+ drawShadow(sx,sy+10,e.size*.7,e.size*.25);
+ ctx.fillStyle=e.color;
+ if(e.id==='tiamat'){
+   ctx.fillRect(sx-e.size*.65,sy-e.size*.25,e.size*1.3,e.size*.55);
+   ctx.beginPath();ctx.moveTo(sx-e.size*.2,sy-e.size*.15);ctx.lineTo(sx-e.size,sy-e.size*.65);ctx.lineTo(sx-e.size*.55,sy+e.size*.15);ctx.fill();
+   ctx.beginPath();ctx.moveTo(sx+e.size*.2,sy-e.size*.15);ctx.lineTo(sx+e.size,sy-e.size*.65);ctx.lineTo(sx+e.size*.55,sy+e.size*.15);ctx.fill();
+ }else if(e.mythic){
+   ctx.fillRect(sx-e.size*.3,sy-e.size*.55,e.size*.6,e.size*1.05);
+   ctx.fillRect(sx-e.size*.5,sy-e.size*.15,e.size,e.size*.25);
+ }else if(e.type==='wolf'){
+   ctx.fillRect(sx-e.size*.55,sy-e.size*.25,e.size*1.1,e.size*.5);
+   ctx.fillRect(sx+e.size*.3,sy-e.size*.45,e.size*.35,e.size*.35);
+ }else{
+   ctx.fillRect(sx-e.size/2,sy-e.size/2,e.size,e.size);
+ }
+ if(e.mythic){ctx.strokeStyle='#e8b7ff';ctx.lineWidth=2;ctx.strokeRect(sx-e.size/2-3,sy-e.size/2-3,e.size+6,e.size+6)}
+ ctx.fillStyle='#fff';ctx.fillRect(sx-6,sy-5,4,3);ctx.fillRect(sx+2,sy-5,4,3);
+
+ // Enemy name + HP bar
+ const barW=e.boss?72:44,barH=e.boss?6:5;
+ const by=sy-e.size/2-16;
+ ctx.font=(e.boss?'bold 11px':'bold 9px')+' -apple-system,BlinkMacSystemFont,sans-serif';
+ ctx.textAlign='center';
+ ctx.fillStyle='rgba(0,0,0,.72)';
+ const label=e.name||e.type||'ENEMY';
+ ctx.fillText(label,sx+1,by-3);
+ ctx.fillStyle='#fff';
+ ctx.fillText(label,sx,by-4);
+   ctx.font='7px -apple-system,BlinkMacSystemFont,sans-serif';
+   ctx.fillText(threatClass(e).toUpperCase(),sx,by-13);
+ ctx.fillStyle='rgba(0,0,0,.65)';
+ ctx.fillRect(sx-barW/2-1,by+2,barW+2,barH+2);
+ ctx.fillStyle='#3b1114';
+ ctx.fillRect(sx-barW/2,by+3,barW,barH);
+ const rate=Math.max(0,Math.min(1,e.hp/e.maxHp));
+ ctx.fillStyle=rate<.25?'#ffca3a':e.mythic?'#d77cff':'#ff5d62';
+ ctx.fillRect(sx-barW/2,by+3,barW*rate,barH);
+ if(e.hp<e.maxHp){
+   ctx.font='8px -apple-system,BlinkMacSystemFont,sans-serif';
+   ctx.fillStyle='#fff';
+   ctx.fillText(`${Math.max(0,Math.ceil(e.hp))}/${e.maxHp}`,sx,by+15);
+ }
+}
+function drawWorld(camX,camY){
+ const biome=biomeAt(player.x,player.y);
+ if(INTERIOR.active){
+   ctx.fillStyle=INTERIOR.type==='town'?'#6f6657':'#20242b';ctx.fillRect(0,0,innerWidth,innerHeight);
+   ctx.strokeStyle='rgba(255,255,255,.04)';
+   for(let x=0;x<innerWidth;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,innerHeight);ctx.stroke()}
+   for(let y=0;y<innerHeight;y+=48){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(innerWidth,y);ctx.stroke()}
+ } else {
+ ctx.fillStyle=biome.ground;ctx.fillRect(0,0,innerWidth,innerHeight);
+ }
+ const grid=64,ox=(((-camX+innerWidth/2)%grid)+grid)%grid,oy=(((-camY+innerHeight/2)%grid)+grid)%grid;
+ ctx.strokeStyle='rgba(255,255,255,.025)';ctx.lineWidth=1;for(let x=ox;x<innerWidth;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,innerHeight);ctx.stroke()}for(let y=oy;y<innerHeight;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(innerWidth,y);ctx.stroke()}
+ for(const c of activeChunks()){
+  for(const it of c.items){const s=worldToScreen(it.x,it.y,camX,camY);if(s.x<-50||s.y<-50||s.x>innerWidth+50||s.y>innerHeight+50)continue;if(it.type==='tree'){drawShadow(s.x,s.y+12,13,5);pixelRect(s.x-4,s.y-5,8,24,'#66482f');pixelRect(s.x-16,s.y-28,32,28,biome.tree)}else if(it.type==='rock'){drawShadow(s.x,s.y+7,10,4);pixelRect(s.x-10,s.y-7,20,14,'#747b7f')}else{pixelRect(s.x-2,s.y-2,4,4,'#f3d36a')}}
+  for(const ch of c.chests)if(!ch.opened){const s=worldToScreen(ch.x,ch.y,camX,camY);pixelRect(s.x-10,s.y-7,20,14,'#9a5c1c');pixelRect(s.x-2,s.y-7,4,14,'#d4aa4c')}
+  for(const n of c.npcs){const s=worldToScreen(n.x,n.y,camX,camY);drawShadow(s.x,s.y+10,10,4);pixelRect(s.x-8,s.y-15,16,22,'#8a5ca8');pixelRect(s.x-6,s.y-25,12,10,'#dfb184')}
+ }
+ if(!INTERIOR.active){
+ for(const t of TOWNS){const s=worldToScreen(t.x,t.y,camX,camY);if(s.x>-80&&s.y>-80&&s.x<innerWidth+80&&s.y<innerHeight+80){pixelRect(s.x-20,s.y-18,40,36,'#8f6a45');pixelRect(s.x-26,s.y-28,52,12,'#5a3740')}}
+ for(const d of DUNGEONS){const s=worldToScreen(d.x,d.y,camX,camY);if(s.x>-70&&s.y>-70&&s.x<innerWidth+70&&s.y<innerHeight+70){pixelRect(s.x-18,s.y-18,36,36,'#24272d');pixelRect(s.x-10,s.y-10,20,20,'#05070a')}}
+}
+drawCombatRange(camX,camY);
+ for(const e of enemies){if(!e.alive)continue;const s=worldToScreen(e.x,e.y,camX,camY);if(s.x<-70||s.y<-70||s.x>innerWidth+70||s.y>innerHeight+70)continue;drawEnemy(e,s.x,s.y)}
+ const p=worldToScreen(player.x,player.y,camX,camY);drawPlayer(p.x,p.y);
+}
+let worldTime=480,weather='clear',weatherTimer=35,lastBiome='',last=performance.now(),frames=0,fpsT=last;
+function update(dt){
+ state.dodge=Math.max(0,state.dodge-dt);state.st=Math.min(state.maxSt,state.st+24*dt);state.mp=Math.min(state.maxMp,state.mp+4*dt);player.attackAnim=Math.max(0,player.attackAnim-dt);
+ const m=Math.hypot(joy.x,joy.y);if(m>.05){const sp=(state.dodge>0?195:125)*AI.modifiers.move*gearMove();player.x+=joy.x/m*sp*dt;player.y+=joy.y/m*sp*dt;player.anim+=dt*9}else player.anim+=dt*2;
+ for(const e of enemies){if(!e.alive)continue;if(INTERIOR.active&&INTERIOR.type==='town')continue;e.cd=Math.max(0,e.cd-dt);const dx=player.x-e.x,dy=player.y-e.y,d=Math.hypot(dx,dy);if(d>35&&d<500){e.x+=dx/d*e.speed*AI.difficulty*dt;e.y+=dy/d*e.speed*AI.difficulty*dt}if(d<42&&e.cd<=0){e.cd=e.boss?1.1:1.7;if(state.dodge<=0){let dm=Math.floor(e.atk*AI.difficulty);if(state.guard)dm=Math.floor(dm*.5*AI.modifiers.guard);dm=Math.max(1,dm-gearDef());state.hp-=dm;profile.damageTaken+=dm;
+ if(e.boss&&Math.random()<.12){const st=e.mythic?['burn','poison','freeze','shock'][Math.floor(Math.random()*4)]:'burn';applyStatus(st,4)}
+ if(state.hp<=0){state.hp=state.maxHp;state.mp=state.maxMp;player.x=player.y=0;msg('💫 王都へ帰還')}}}}
+ maintainEnemies();updateStatus(dt);
+ AI.last+=dt;if(AI.last>5){AI.last=0;AI.analyze();evolveSkills();unlockCompanion();updateWorldFactions();renderAI()}
+ if(COMPANION.active&&Math.floor(performance.now()/1800)!==Math.floor((performance.now()-dt*1000)/1800))companionAttack()
+ worldTime=(worldTime+dt*4)%1440;weatherTimer-=dt;if(weatherTimer<=0){weatherTimer=30+Math.random()*30;weather=['clear','clear','rain','fog'][Math.floor(Math.random()*4)]}
+ if(hasSkill('sun_core')&&worldTime/60>=6&&worldTime/60<=18)state.hp=Math.min(state.maxHp,state.hp+1.2*dt);
+ const b=biomeAt(player.x,player.y);if(b.name!==lastBiome){lastBiome=b.name;CODEX.zones.add(b.name);zoneEl.textContent=b.name;zoneEl.style.display='block';setTimeout(()=>zoneEl.style.display='none',1500)}
+}
+
+const mini=document.getElementById('minimap'),mctx=mini.getContext('2d');
+const worldMap=document.getElementById('worldMap'),wctx=worldMap.getContext('2d');
+function mapDot(c,x,y,r=3){c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill()}
+function drawMap(c,w,h,range){
+ c.clearRect(0,0,w,h);
+ const b=biomeAt(player.x,player.y);c.fillStyle=b.ground;c.fillRect(0,0,w,h);
+ c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;
+ for(let i=0;i<9;i++){let x=i*w/8;c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke();let y=i*h/8;c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke()}
+ const conv=(x,y)=>({x:w/2+(x-player.x)/range*w/2,y:h/2+(y-player.y)/range*h/2});
+ for(const ch of activeChunks()){
+  for(const chest of ch.chests)if(!chest.opened){const p=conv(chest.x,chest.y);if(p.x>=0&&p.y>=0&&p.x<w&&p.y<h){c.fillStyle='#ffd166';c.fillRect(p.x-2,p.y-2,4,4)}}
+  for(const n of ch.npcs){const p=conv(n.x,n.y);if(p.x>=0&&p.y>=0&&p.x<w&&p.y<h){c.fillStyle='#6ee7ff';mapDot(c,p.x,p.y,3)}}
+ }
+ for(const e of enemies)if(e.alive){const p=conv(e.x,e.y);if(p.x>=0&&p.y>=0&&p.x<w&&p.y<h){c.fillStyle=e.mythic?'#d77cff':e.boss?'#ff9d45':'#ff5d62';mapDot(c,p.x,p.y,e.boss?4:2)}}
+ c.fillStyle='#fff';mapDot(c,w/2,h/2,4);c.strokeStyle='#2f80ed';c.lineWidth=2;c.stroke();
+}
+function drawMinimap(){
+ mctx.save();
+ mctx.clearRect(0,0,mini.width,mini.height);
+ mctx.beginPath();mctx.arc(mini.width/2,mini.height/2,mini.width/2-2,0,Math.PI*2);mctx.clip();
+ drawMap(mctx,mini.width,mini.height,900);
+ mctx.restore();
+ mctx.beginPath();mctx.arc(mini.width/2,mini.height/2,mini.width/2-2,0,Math.PI*2);
+ mctx.strokeStyle='rgba(255,255,255,.55)';mctx.lineWidth=4;mctx.stroke();
+}
+function drawWorldMap(){drawMap(wctx,worldMap.width,worldMap.height,2600)}
+
+function drawWeather(){
+ if(weather==='rain'){ctx.strokeStyle='rgba(180,220,255,.45)';for(let i=0;i<60;i++){const x=(i*97+performance.now()*.22)%innerWidth,y=(i*53+performance.now()*.45)%innerHeight;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-5,y+12);ctx.stroke()}}
+ if(weather==='fog'){ctx.fillStyle='rgba(220,230,230,.16)';ctx.fillRect(0,0,innerWidth,innerHeight)}
+ const hr=worldTime/60;if(hr<6||hr>19){ctx.fillStyle='rgba(8,16,38,.38)';ctx.fillRect(0,0,innerWidth,innerHeight)}
+}
+function render(){
+ const now=performance.now(),dt=Math.min(.033,(now-last)/1000);last=now;frames++;if(now-fpsT>=1000){perf.textContent='FPS '+Math.round(frames*1000/(now-fpsT));frames=0;fpsT=now}
+ update(dt);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,innerWidth,innerHeight);
+ drawWorld(player.x,player.y);drawFloating(player.x,player.y,dt);drawWeather();drawMinimap();
+ hud.innerHTML=`Lv.${state.lv}　💰${state.gold}G<br>❤️ <span class="bar"><span class="fill hp" style="width:${state.hp/state.maxHp*100}%"></span></span> ${Math.ceil(state.hp)}<br>💧 <span class="bar"><span class="fill mp" style="width:${state.mp/state.maxMp*100}%"></span></span><br>🟢 <span class="bar"><span class="fill st" style="width:${state.st/state.maxSt*100}%"></span></span><br>⭐ <span class="bar"><span class="fill xp" style="width:${state.xp/(state.lv*100)*100}%"></span></span><br>⚔️ ${weapons.find(w=>w.id===weapon).name}　⚡${Math.floor(state.burst)}%`;
+ const q=AI.quests.find(q=>!q.done);
+ objective.textContent=q?`目的：${q.name} ${(q.progress||0)}/${q.goal}`:'目的：自由探索';
+ document.getElementById('questChip').textContent=q?`📜 ${q.name} ${(q.progress||0)}/${q.goal}`:'📜 自由探索';
+ aiChip.textContent=`🤖 ${AI.job} / ${AI.mood} / 神話${MYTHIC.defeated.length}`;
+ document.getElementById('aiEffects').textContent=`AI効果：${aiEffectText()}`;
+ document.getElementById('factionChip').textContent=`⚔️ 世界情勢：${factionSummary()} / 権能${SKILL_TREE.authority.length}`;
+ const hr=worldTime/60;eventChip.textContent=`${weather==='rain'?'🌧️ 雨':weather==='fog'?'🌫️ 霧':'🌤️ 晴れ'} / ${hr<6||hr>19?'夜':'昼'} / ${AI.event}`;
+ const boss=MYTHIC.active?.alive?MYTHIC.active:enemies.find(e=>e.alive&&e.boss&&Math.hypot(player.x-e.x,player.y-e.y)<500);if(boss){bossHUD.style.display='block';bossName.textContent=boss.name;bossFill.style.width=(boss.hp/boss.maxHp*100)+'%'}else bossHUD.style.display='none';
+ requestAnimationFrame(render);
+}
+document.getElementById('startBtn').onclick=()=>{document.getElementById('titleScreen').style.display='none';msg('⚔️ 冒険開始')};
+renderDiag();renderMenu();renderAI();render();
+})();
+</script>
+</body>
+</html>
