@@ -1,16 +1,20 @@
-# 勇者の冒険 REAL v13.3 LIVE AI
+# 勇者の冒険 REAL v13.4 LIVE AI
 
 今回のエラー:
-`ReferenceError: Cannot access 'baseCamp' before initialization`
+`ReferenceError: Cannot access 'equippedSet' before initialization`
 
 原因:
-- `baseCampBuild()` が `baseCamp` の宣言より先に実行されていたため、JavaScriptが停止していました。
+- 初期 `equipWeapon('sword')` が早い位置で実行されていた
+- `equipWeapon()` → `refreshMenus()` が呼ばれる
+- `refreshMenus()` が `equippedSet` / ITEM_DB / inventory などを参照
+- それらの初期化前だったためJavaScriptが停止
 
 修正:
-- `baseCamp` を `baseCampBuild()` より前に初期化
-- v13.2の起動順序修正とエラー表示機能も維持
-- LIVE AI / アイテム / 職業 / ユニークスキル / 採掘 / 建築 / 自由カメラを維持
-- 過去のセーブデータ読み込み互換を維持
+- 初期武器装備を、全データ・UI関数の初期化後へ移動
+- baseCamp初期化順序の修正を維持
+- LIVE AI初期化順序の修正を維持
+- 起動エラー表示を維持
+- 過去セーブデータの読み込み互換を維持
 
 GitHub Pagesの `index.html` をこの版に差し替えてCommitしてください。
-確認時はURL末尾に `?v=133` を付けてください。
+確認URL末尾に `?v=134` を付けてください。
